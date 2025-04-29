@@ -1,0 +1,1 @@
+export const SII_SIMPLE_API_BASE_URL = 'https://servicios.simpleapi.cl'; // Base URL for the API
