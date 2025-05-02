@@ -1,13 +1,12 @@
 {
   "name": "sii-apis-playground-server",
   "version": "0.0.1",
-  "main": "dist/main.js",
+  "main": "dist/index.js",
   "description": "A playground server for SII APIs",
   "scripts": {
-    "dev:tsc": "tsc --watch -p .",
-    "dev:serve": "nodemon -e js -w lib dist/main.js",
-    "dev": "run-p dev:*",
-    "start": "tsc --watch & nodemon dist",
+    "build": "tsc",
+    "clean": "rimraf dist",
+    "dev": "tsc --watch & nodemon dist | pino-pretty",
     "test": "jest",
     "test:coverage": "jest --coverage"
   },
