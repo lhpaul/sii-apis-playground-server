@@ -1,1 +1,1 @@
-export * from './http-requests/http-requests.utils';
+export * from './api-requests/api-requests.utils';

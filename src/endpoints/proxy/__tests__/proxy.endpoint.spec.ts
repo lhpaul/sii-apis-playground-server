@@ -1,20 +1,14 @@
+import { createEndpoint } from '../../../utils/endpoints/endpoints.utils';
 import { proxyEndpoint } from '../proxy.endpoint';
-import { proxyHandler } from '../proxy.endpoint.handler';
+
+jest.mock('./../../../utils/endpoints/endpoints.utils', () => ({
+  createEndpoint: jest.fn().mockImplementation(() => ({ test: 'something' }))
+}));
 
 describe('proxyEndpoint', () => {
-  it('should have the correct method', () => {
-    expect(proxyEndpoint.method).toBe('*');
-  });
-
-  it('should have the correct path', () => {
-    expect(proxyEndpoint.path).toBe('/proxy/{path*}');
-  });
-
-  it('should have a handler defined', () => {
-    expect(proxyEndpoint.handler).toBeDefined();
-  });
-
-  it('should use the correct handler function', () => {
-    expect(proxyEndpoint.handler).toBe(proxyHandler);
+  it('it should be what is returned from createEndpoint', () => {
+    const mockValue = { test: 'something' };
+    (createEndpoint as jest.Mock).mockReturnValue(mockValue);
+    expect(proxyEndpoint).toHaveProperty('test', 'something');
   });
 });

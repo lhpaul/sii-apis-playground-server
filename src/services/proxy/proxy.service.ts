@@ -1,19 +1,9 @@
-import { apiRequest } from '../../utils/http-requests/http-requests.utils';
+import { apiRequest } from '../../utils/api-requests/api-requests.utils';
+import { IRequestOptions } from '../../utils/api-requests/api-requests.utils.interfaces';
 import { MakeRequestError, MakeProxyRequestErrorCode } from './proxy.service.errors';
 import { IProxyApiConfig } from './proxy.service.interfaces';
 
 export class ProxyService {
-  // private static instances: { [label: string]: ProxyService } = {};
-  // public static getInstance(label: string = '', config?: IProxyApiConfig): ProxyService {
-  //   if (ProxyService.instances[label]) {
-  //     return ProxyService.instances[label];
-  //   }
-  //   if (!config) {
-  //     throw new Error(CONFIG_NEEDED_FOR_FIRST_INSTANTIATION_MESSAGE)
-  //   }
-  //   ProxyService.instances[label] = new ProxyService(config);
-  //   return ProxyService.instances[label];
-  // }
   private baseUrl: string;
   private defaultHeaders?: {
     [key: string]: string;
@@ -25,23 +15,35 @@ export class ProxyService {
   }
 
   /**
-   * Make request to the proxied API
-   * @param {string} method HTTP method
-   * @param {string} path to make the request to
-   * @param {any} data data to send in the request
-   * @param {any} headers headers to send in the request
-   * @returns {Promise<any>} response from the API
-   */
-  async makeRequest(method: string, path: string, data?: any, headers?: any): Promise<any> {
+ * Sends an HTTP request to the proxied API.
+ *
+ * @param values - An object containing the request details.
+ * @param values.method - The HTTP method to use (e.g., 'GET', 'POST').
+ * @param values.path - The endpoint path to make the request to, relative to the base URL.
+ * @param values.payload - Optional data to include in the request body.
+ * @param values.headers - Optional headers to include in the request.
+ * @param options - Additional options for the request.
+ * @param options.logger - Optional logger instance for logging request details.
+ * @param options.maskOptions - Optional masking options for sensitive data in logs.
+ * @returns A promise that resolves with the response data from the API.
+ * @throws {MakeRequestError} If the request fails, an error is thrown with details about the failure.
+ */
+  async makeRequest(values: {
+    method: string;
+    path: string;
+    payload?: any;
+    headers?: any
+  }, options?: IRequestOptions): Promise<any> {
+    const { method, path, payload, headers } = values;
     const { data: responseData, error } = await apiRequest<any>({
       method,
       url: `${this.baseUrl}${path}`,
-      data,
+      payload,
       headers: {
         ...this.defaultHeaders,
         ...headers,
       },
-    });
+    }, options);
     if (error) {
       throw new MakeRequestError({
         message: error.message,

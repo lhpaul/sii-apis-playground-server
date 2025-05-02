@@ -1,9 +1,9 @@
 import { ProxyService } from '../proxy.service';
-import { apiRequest } from '../../../utils/http-requests/http-requests.utils';
+import { apiRequest } from '../../../utils/api-requests/api-requests.utils';
 import { MakeRequestError, MakeProxyRequestErrorCode } from '../proxy.service.errors';
 import { IProxyApiConfig } from '../proxy.service.interfaces';
 
-jest.mock('../../../utils/http-requests/http-requests.utils');
+jest.mock('../../../utils/api-requests/api-requests.utils');
 
 describe(ProxyService.name, () => {
   const mockConfig: IProxyApiConfig = {
@@ -33,21 +33,26 @@ describe(ProxyService.name, () => {
     describe('when sending a request with no data', () => {
       const testMethod = 'GET';
       it('should make a successful request and return the response data', async () => {
-        (apiRequest as jest.Mock).mockResolvedValue({ data: mockResponse, error: null });
-
-        const response = await proxyService.makeRequest(testMethod, testPath);
+        (apiRequest as jest.Mock).mockResolvedValue({ status: 200, data: mockResponse, error: null });
+        const response = await proxyService.makeRequest({
+          method: testMethod,
+          path: testPath,
+        });
         expect(apiRequest).toHaveBeenCalledWith({
           method: testMethod,
           url: `${mockConfig.baseUrl}${testPath}`,
-          data: undefined,
+          payload: undefined,
           headers: mockConfig.defaultHeaders,
-        });
+        }, undefined);
         expect(response).toEqual(mockResponse);
       });
       it('should throw a MakeRequestError if the request fails', async () => {
         (apiRequest as jest.Mock).mockResolvedValue({ data: null, error: mockError });
         try {
-          await proxyService.makeRequest(testMethod, testPath);
+          await proxyService.makeRequest({
+            method: testMethod,
+            path: testPath,
+          });
           expect(true).toBeFalsy(); // This line should not be reached
         } catch (error: any) {
           expect(error).toBeInstanceOf(MakeRequestError);
@@ -60,9 +65,9 @@ describe(ProxyService.name, () => {
         expect(apiRequest).toHaveBeenCalledWith({
           method: testMethod,
           url: `${mockConfig.baseUrl}${testPath}`,
-          data: undefined,
+          payload: undefined,
           headers: mockConfig.defaultHeaders,
-        });
+        }, undefined);
       });
     });
     describe('when sending a request with data', () => {
@@ -70,20 +75,28 @@ describe(ProxyService.name, () => {
       it('should make a successful request and return the response data', async () => {
         (apiRequest as jest.Mock).mockResolvedValue({ data: mockResponse, error: null });
 
-        const response = await proxyService.makeRequest(testMethod, testPath, testData);
+        const response = await proxyService.makeRequest({
+          method: testMethod,
+          path: testPath,
+          payload: testData,
+        });
         expect(apiRequest).toHaveBeenCalledWith({
           method: testMethod,
           url: `${mockConfig.baseUrl}${testPath}`,
-          data: testData,
+          payload: testData,
           headers: mockConfig.defaultHeaders,
-        });
+        }, undefined);
         expect(response).toEqual(mockResponse);
       });
 
       it('should throw a MakeRequestError if the request fails', async () => {
         (apiRequest as jest.Mock).mockResolvedValue({ data: null, error: mockError });
         try {
-          await proxyService.makeRequest(testMethod, testPath, testData);
+          await proxyService.makeRequest({
+            method: testMethod,
+            path: testPath,
+            payload: testData,
+          });
           expect(true).toBeFalsy(); // This line should not be reached
         } catch (error: any) {
           expect(error).toBeInstanceOf(MakeRequestError);
@@ -96,9 +109,9 @@ describe(ProxyService.name, () => {
         expect(apiRequest).toHaveBeenCalledWith({
           method: testMethod,
           url: `${mockConfig.baseUrl}${testPath}`,
-          data: testData,
+          payload: testData,
           headers: mockConfig.defaultHeaders,
-        });
+        }, undefined);
       });
     });
     describe('when sending a request with custom headers', () => {
@@ -106,22 +119,32 @@ describe(ProxyService.name, () => {
       it('should include custom headers in the request', async () => {
         (apiRequest as jest.Mock).mockResolvedValue({ data: mockResponse, error: null });
 
-        const response = await proxyService.makeRequest(testMethod, testPath, testData, customHeaders);
+        const response = await proxyService.makeRequest({
+          method: testMethod,
+          path: testPath,
+          payload: testData,
+          headers: customHeaders,
+        });
         expect(apiRequest).toHaveBeenCalledWith({
           method: testMethod,
           url: `${mockConfig.baseUrl}${testPath}`,
-          data: testData,
+          payload: testData,
           headers: {
             ...mockConfig.defaultHeaders,
             ...customHeaders,
           },
-        });
+        }, undefined);
         expect(response).toEqual(mockResponse);
       });
       it('should throw a MakeRequestError if the request fails', async () => {
         (apiRequest as jest.Mock).mockResolvedValue({ data: null, error: mockError });
         try {
-          await proxyService.makeRequest(testMethod, testPath, testData, customHeaders);
+          await proxyService.makeRequest({
+            method: testMethod,
+            path: testPath,
+            payload: testData,
+            headers: customHeaders,
+          });
           expect(true).toBeFalsy(); // This line should not be reached
         } catch (error: any) {
           expect(error).toBeInstanceOf(MakeRequestError);
@@ -134,12 +157,12 @@ describe(ProxyService.name, () => {
         expect(apiRequest).toHaveBeenCalledWith({
           method: testMethod,
           url: `${mockConfig.baseUrl}${testPath}`,
-          data: testData,
+          payload: testData,
           headers: {
             ...mockConfig.defaultHeaders,
             ...customHeaders,
           },
-        });
+        }, undefined);
       });
     });
   });
