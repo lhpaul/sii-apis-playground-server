@@ -21,5 +21,8 @@ export default {
     'src/**/*.ts',
     '!src/**/*.d.ts',
     '!src/**/index.ts',
+    '!src/routes.ts',
+    '!src/server.ts',
+    '!src/**/*.mocks.ts',
   ],
 };
