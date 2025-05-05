@@ -1,89 +1,91 @@
-
-import {server as HapiServer, Server } from '@hapi/hapi';
-import { createGcpLoggingPinoConfig } from '@google-cloud/pino-logging-gcp-config';
-import * as Pino from 'hapi-pino';
-import * as pino from 'pino';
+import cors from '@fastify/cors'
+import helmet from '@fastify/helmet'
+import fastify, { FastifyInstance } from 'fastify';
 
 import { routes } from './routes';
-import { logOnPreHandler, logOnRequest, logOnPreResponse } from './utils/server/server.utils';
+import { RequestLogger } from './utils/request-logger/request-logger.class';
 
-export let server: Server;
+export let server: FastifyInstance;
 
-export const init = async function(): Promise<Server> {
-    server = HapiServer({
-        port: process.env.PORT || 4000,
-        host: '0.0.0.0',
-        routes: {
-            cors: {
-                origin: ['*'],
-            },
-        },
+export const init = async function(): Promise<FastifyInstance> {
+    server = fastify({
+        logger: {
+            level: process.env.NODE_ENV !== 'production' ? 'debug' : 'info'
+        }
     });
 
-    // Register plugins
-    await server.register({
-        plugin: Pino,
-        options: {
-            logEvents: [], // this is to avoid any auto generated log
-            instance: process.env.NODE_ENV == 'production' ?
-                pino.pino(createGcpLoggingPinoConfig(undefined, {
-                    level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
-                    redact: {
-                        paths: ['req'], // this is to avoid adding request's info to every log since it can bring sensitive info
-                        remove: true
-                    },
-                })) : // prettier logs when running on local machine in order to better debug logs
-                pino.pino({
-                    transport: {
-                      target: 'pino-pretty',
-                      options: {
-                        colorize: true
-                      }
-                    },
-                    redact: {
-                        paths: ['req'],
-                        remove: true
-                    },
-                  })
-        },
-    });
+    if (process.env.NODE_ENV !== 'production') {
+        await server.register(cors, {
+            origin: 'localhost'
+        });
+    }
+
+    server.register(helmet, { global: true })
 
     // Load routes
-    server.route(routes);
-
-    // Load handlers for lifecycle events.
-    // For more information about lifecycle events, see https://futurestud.io/files/hapi/hapi-request-lifecycle.pdf and https://hapi.dev/api/?v=20.3.0#request-lifecycle
-    server.ext({
-        type: 'onRequest',
-        method: [logOnRequest]
-    });
-    server.ext({
-        type: 'onPreHandler',
-        method: [logOnPreHandler]
+    routes.forEach(route => {
+        server.route(route);
     });
 
-    server.ext({
-        type: 'onPreResponse',
-        method: [logOnPreResponse]
+    server.setNotFoundHandler((_request, reply) => {
+        // TODO: move this values to constants
+        reply.status(404).send({
+            error: 'Not found',
+            message: 'The requested resource was not found'
+        });
+    });
+
+    // Wrap request logger
+    server.addHook('onRequest', (request, _reply, done) => {
+        request.log = new RequestLogger({
+            logger: request.log
+        });
+        done();
+    });
+
+    // Add hook for timeout
+    server.addHook('onTimeout', (request, reply) => {
+        request.log.warn({
+            logId: 'request-timeout',
+            data: {
+                requestId: request.id,
+                elapsedTime: reply.elapsedTime
+            }
+        }, `Request timed out after ${reply.elapsedTime}ms`);
     });
 
     return server;
 };
 
 export const start = async function (): Promise<void> {
-    server.logger.info({
-        eventName: 'server-start',
-        host: server.settings.host,
-        port: server.settings.port,
-    }, `Server started on ${server.settings.host}:${server.settings.port}`);
-    return server.start();
+    const address = await server.listen({
+        port: Number(process.env.PORT) || 4000,
+        host: '0.0.0.0'
+    });
+    
+    server.log.info({
+        logId: 'server-start',
+        data: {
+            address
+        }
+    }, `Server started on ${address}`);
 };
 
 process.on('unhandledRejection', (err) => {
-    server.logger.error({
-        eventName: 'unhandled-rejection',
-        error: err,
+    server.log.error({
+        logId: 'unhandled-rejection',
+        data: {
+            error: err,
+        }
     }, `Unhandled rejection: ${err}`);
     console.error('unhandledRejection', err);
     process.exit(1);
+});
+
+process.on('uncaughtException', (err) => {
+    server.log.error({
+        logId: 'uncaught-exception',
+        data: { error: err }
+    }, `Uncaught exception: ${err}`);
+    console.error('uncaughtException', err);
 });

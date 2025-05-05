@@ -1,285 +1,303 @@
-import axios from 'axios';
-import { IProcessLogger } from '../../../interfaces/logging.interfaces';
-import { maskFields } from '../../mask/mask.utils';
+import axios, { AxiosStatic } from 'axios';
 import { apiRequest } from '../api-requests.utils';
 import { LOG_IDS } from '../api-requests.constants';
+import { maskFields } from '../../mask/mask.utils';
+import { processLoggerMock } from '../../mocks/process-logger.mocks';
+import { IApiRequestValues, IRequestOptions } from '../api-requests.utils.interfaces';
+import { IProcessLogger } from '../../../definitions/logging.interfaces';
 
-jest.mock('../../mask/mask.utils');
+// Mock axios
 jest.mock('axios');
+const mockedAxios = axios as jest.Mocked<AxiosStatic>;
 
-describe('API Request Utils', () => {
-  const mockUrl = 'https://test-api.example.com/endpoint';
-  const mockLogger = {
+// Mock the maskFields utility
+jest.mock('../../mask/mask.utils', () => ({
+  maskFields: jest.fn().mockImplementation((obj: Record<string, any>, _fields: string[]) => obj)
+}));
+
+// Mock the processLoggerMock
+jest.mock('../../mocks/process-logger.mocks', () => ({
+  processLoggerMock: {
     info: jest.fn(),
     error: jest.fn(),
-  } as unknown as IProcessLogger;
+    warn: jest.fn(),
+    debug: jest.fn(),
+    fatal: jest.fn(),
+    trace: jest.fn(),
+    silent: jest.fn(),
+    currentStep: '',
+    level: 'info',
+    initTime: 0,
+    metadata: {},
+    startStep: jest.fn(),
+    endStep: jest.fn(),
+    getStepElapsedTime: jest.fn(),
+    getTotalElapsedTime: jest.fn()
+  }
+}));
 
-  const maskFieldsMockImplementation =  (_: any) => ({ sensitiveField: '****' });
-  
+describe(apiRequest.name, () => {
+  let mockLogger: jest.Mocked<IProcessLogger>;
+  const baseRequestValues: IApiRequestValues = {
+    method: 'GET',
+    url: 'https://api.example.com/test',
+    headers: { 'Authorization': 'Bearer token' },
+    params: { id: '123' },
+    payload: { data: 'test' }
+  };
+
   beforeEach(() => {
+    // Reset all mocks
     jest.clearAllMocks();
-    (maskFields as jest.Mock).mockImplementation(maskFieldsMockImplementation);
+
+    // Setup mock logger
+    mockLogger = {
+      info: jest.fn(),
+      error: jest.fn(),
+      warn: jest.fn(),
+      debug: jest.fn(),
+      fatal: jest.fn(),
+      trace: jest.fn(),
+      silent: jest.fn(),
+      currentStep: '',
+      level: 'info',
+      initTime: 0,
+      metadata: {},
+      startStep: jest.fn(),
+      endStep: jest.fn(),
+      getStepElapsedTime: jest.fn(),
+      getTotalElapsedTime: jest.fn()
+    } as unknown as jest.Mocked<IProcessLogger>;
   });
-  
-  describe(apiRequest.name, () => {
-    it('should make a successful request and return expected result', async () => {
-      const mockResponseData = { id: 1, name: 'Test Data' };
-      (axios as jest.MockedFunction<typeof axios>).mockResolvedValueOnce({
-        data: mockResponseData,
+
+  describe('Successful requests', () => {
+    it('should make a successful API request and log the response', async () => {
+      // Setup mock response
+      const mockResponse = {
         status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {} as any,
-      });
-      
-      const result = await apiRequest({
+        headers: { 'content-type': 'application/json' },
+        data: { result: 'success' }
+      };
+      (mockedAxios as unknown as jest.Mock).mockResolvedValueOnce(mockResponse);
+
+      // Make the request
+      const result = await apiRequest(baseRequestValues);
+
+      // Verify axios was called with correct config
+      expect(mockedAxios).toHaveBeenCalledWith({
         method: 'GET',
-        url: mockUrl,
+        url: 'https://api.example.com/test',
+        headers: { 'Authorization': 'Bearer token' },
+        params: { id: '123' },
+        data: { data: 'test' }
       });
-      
-      expect(axios).toHaveBeenCalledWith({
-        method: 'GET',
-        url: mockUrl,
-        headers: undefined,
-        params: undefined,
-        data: undefined,
-      });
-      
+
+      // Verify success logging
+      expect(processLoggerMock.info).toHaveBeenCalledWith(
+        expect.objectContaining({
+          logId: LOG_IDS.API_REQUEST_START,
+          data: {
+            method: 'GET',
+            url: 'https://api.example.com/test',
+            headers: baseRequestValues.headers,
+            params: baseRequestValues.params,
+            payload: baseRequestValues.payload
+          }
+        }),
+        'Making GET HTTP request to https://api.example.com/test'
+      );
+
+      expect(processLoggerMock.info).toHaveBeenCalledWith(
+        expect.objectContaining({
+          logId: LOG_IDS.API_REQUEST_SUCCESS,
+          data: {
+            method: 'GET',
+            url: 'https://api.example.com/test',
+            requestHeaders: baseRequestValues.headers,
+            params: baseRequestValues.params,
+            requestPayload: baseRequestValues.payload,
+            responseHeaders: mockResponse.headers,
+            responsePayload: mockResponse.data
+          }
+        }),
+        'HTTP request to https://api.example.com/test responded successfully with status 200'
+      );
+
+      // Verify result
       expect(result).toEqual({
         status: 200,
-        data: mockResponseData,
-      });
-    });
-    
-    it('should pass data, headers and params correctly to axios', async () => {
-      const mockResponseData = { result: 'success' };
-      const mockParams = { filter: 'test' };
-      const mockData = { field: 'value' };
-      const mockHeaders = { 'Authorization': 'Bearer token123' };
-      
-      (axios as jest.MockedFunction<typeof axios>).mockResolvedValueOnce({
-        data: mockResponseData,
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {} as any,
-      });
-      
-      const result = await apiRequest({
-        method: 'POST',
-        url: mockUrl,
-        payload: mockData,
-        headers: mockHeaders,
-        params: mockParams,
-      });
-      
-      expect(axios).toHaveBeenCalledWith({
-        method: 'POST',
-        url: mockUrl,
-        headers: {
-          'Authorization': 'Bearer token123',
-        },
-        params: mockParams,
-        data: mockData,
-      });
-      
-      expect(result).toEqual({
-        status: 200,
-        data: mockResponseData,
+        data: { result: 'success' }
       });
     });
 
-    it('should use the logger when provided', async () => {
-      (axios as jest.MockedFunction<typeof axios>).mockResolvedValueOnce({
-        data: { id: 1, name: 'Test Data' },
+    it('should use custom logger when provided', async () => {
+      const mockResponse = {
         status: 200,
-        statusText: 'OK',
         headers: {},
-        config: {} as any,
-      });
-      
-      await apiRequest({
-        method: 'GET',
-        url: mockUrl,
-      }, { logger: mockLogger });
-      
-      expect(mockLogger.info).toHaveBeenCalledTimes(2);
+        data: {}
+      };
+      (mockedAxios as unknown as jest.Mock).mockResolvedValueOnce(mockResponse);
+
+      const options: IRequestOptions = {
+        logger: mockLogger
+      };
+
+      await apiRequest(baseRequestValues, options);
+
+      expect(mockLogger.info).toHaveBeenCalled();
+      expect(processLoggerMock.info).not.toHaveBeenCalled();
     });
 
-    it('should call the logger specifying the mask options', async () => {
-      
-      const maskOptions = {
-        requestHeaders: ['Authorization'],
-        params: ['filter'],
-        requestPayloadFields: ['field'],
-        responseHeaders: ['session'],
-        responsePayloadFields: ['id'],
-      };
-      
-      const mockApiResponse = {
-        data: { id: 1, name: 'Test Data' },
+    it('should mask sensitive data according to mask options', async () => {
+      const mockResponse = {
         status: 200,
-        statusText: 'OK',
-        headers: { session: 'session' },
-        config: {} as any,
+        headers: { 'content-type': 'application/json' },
+        data: { result: 'success' }
       };
-      (axios as jest.MockedFunction<typeof axios>).mockResolvedValueOnce(mockApiResponse);
-      const values = {
-        method: 'GET',
-        url: mockUrl,
-        headers: { Authorization: 'Bearer something' },
-        params: { filter: 'test' },
-        data: { field: 'value' },
+      (mockedAxios as unknown as jest.Mock).mockResolvedValueOnce(mockResponse);
+
+      const options: IRequestOptions = {
+        maskOptions: {
+          requestHeaders: ['Authorization'],
+          params: ['id'],
+          requestPayloadFields: ['data'],
+          responseHeaders: ['content-type'],
+          responsePayloadFields: ['result']
+        }
       };
-      await apiRequest(values, { logger: mockLogger, maskOptions });
-      
-      expect(mockLogger.info).toHaveBeenCalledTimes(2);
-      expect(mockLogger.info).toHaveBeenNthCalledWith(1,
-        LOG_IDS.API_REQUEST_START,
-        expect.objectContaining({
-          method: 'GET',
-          url: mockUrl,
-          headers: maskFieldsMockImplementation(values.headers),
-          params: maskFieldsMockImplementation(values.params),
-          payload: maskFieldsMockImplementation(values.data),
-        }),
-        expect.stringContaining(`Making GET HTTP request to ${mockUrl}`)
-      );
-      expect(mockLogger.info).toHaveBeenNthCalledWith(2,
-        LOG_IDS.API_REQUEST_SUCCESS,
-        expect.objectContaining({
-          method: 'GET',
-          url: mockUrl,
-          requestHeaders: maskFieldsMockImplementation(values.headers),
-          params: maskFieldsMockImplementation(values.params),
-          requestPayload: maskFieldsMockImplementation(values.data),
-          responseHeaders: maskFieldsMockImplementation(mockApiResponse.headers),
-          responsePayload: maskFieldsMockImplementation(mockApiResponse.data)
-          
-        }),
-        expect.stringContaining(`HTTP request to ${mockUrl} responded successfully with status ${mockApiResponse.status}`)
-      );
+
+      await apiRequest(baseRequestValues, options);
+
+      const maskOptions = options.maskOptions!;
+      expect(maskFields).toHaveBeenCalledWith(baseRequestValues.headers, maskOptions.requestHeaders);
+      expect(maskFields).toHaveBeenCalledWith(baseRequestValues.params, maskOptions.params);
+      expect(maskFields).toHaveBeenCalledWith(baseRequestValues.payload, maskOptions.requestPayloadFields);
+      expect(maskFields).toHaveBeenCalledWith(mockResponse.headers, maskOptions.responseHeaders);
+      expect(maskFields).toHaveBeenCalledWith(mockResponse.data, maskOptions.responsePayloadFields);
     });
-    
-    it('should handle axios errors with response data correctly', async () => {
+  });
+
+  describe('Failed requests', () => {
+    it('should handle AxiosError and return error response', async () => {
       const mockError = {
-        code: 'ERR_BAD_REQUEST',
-        message: 'Request failed with status code 400',
-        response: {
-          status: 400,
-          data: { error: 'Bad request' },
-        },
-      };
-      
-      (axios as jest.MockedFunction<typeof axios>).mockRejectedValueOnce(mockError);
-      
-      const result = await apiRequest({
-        method: 'GET',
-        url: mockUrl,
-      });
-      
-      expect(result).toEqual({
-        status: 400,
-        error: {
-          code: 'ERR_BAD_REQUEST',
-          message: 'Request failed with status code 400',
-          status: 400,
-          data: { error: 'Bad request' },
-        },
-      });
-    });
-    
-    it('should handle axios errors without response data correctly', async () => {
-      const mockError = {
+        isAxiosError: true,
+        message: 'Request failed',
         code: 'ECONNREFUSED',
-        message: 'Connection refused',
+        response: {
+          status: 500,
+          data: { error: 'Internal Server Error' }
+        }
       };
-      
-      (axios as jest.MockedFunction<typeof axios>).mockRejectedValueOnce(mockError);
-      
-      const result = await apiRequest({
-        method: 'GET',
-        url: mockUrl,
+      (mockedAxios as unknown as jest.Mock).mockRejectedValueOnce(mockError);
+
+      const result = await apiRequest(baseRequestValues);
+
+      expect(processLoggerMock.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          logId: LOG_IDS.API_REQUEST_ERROR,
+          data: {
+            method: 'GET',
+            url: 'https://api.example.com/test',
+            requestHeaders: baseRequestValues.headers,
+            params: baseRequestValues.params,
+            requestPayload: baseRequestValues.payload,
+            error: {
+              message: 'Request failed',
+              code: 'ECONNREFUSED',
+              status: 500,
+              data: { error: 'Internal Server Error' }
+            }
+          }
+        }),
+        'HTTP GET request to https://api.example.com/test failed with error: Request failed'
+      );
+
+      expect(result).toEqual({
+        status: 500,
+        error: {
+          code: 'ECONNREFUSED',
+          message: 'Request failed',
+          status: 500,
+          data: { error: 'Internal Server Error' }
+        }
       });
-      
+    });
+
+    it('should handle AxiosError without response', async () => {
+      const mockError = {
+        isAxiosError: true,
+        message: 'Network Error',
+        code: 'ERR_NETWORK'
+      };
+      (mockedAxios as unknown as jest.Mock).mockRejectedValueOnce(mockError);
+
+      const result = await apiRequest(baseRequestValues);
+
+      expect(processLoggerMock.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          logId: LOG_IDS.API_REQUEST_ERROR,
+          data: {
+            method: 'GET',
+            url: 'https://api.example.com/test',
+            requestHeaders: baseRequestValues.headers,
+            params: baseRequestValues.params,
+            requestPayload: baseRequestValues.payload,
+            error: {
+              message: 'Network Error',
+              code: 'ERR_NETWORK',
+              status: null,
+              data: null
+            }
+          }
+        }),
+        'HTTP GET request to https://api.example.com/test failed with error: Network Error'
+      );
+
       expect(result).toEqual({
         status: -1,
         error: {
-          code: 'ECONNREFUSED',
-          message: 'Connection refused',
+          code: 'ERR_NETWORK',
+          message: 'Network Error',
           status: null,
-          data: null,
-        },
+          data: null
+        }
       });
     });
 
-    it('should mask the values when logging an error', async () =>{
-      const maskOptions = {
-        requestHeaders: ['Authorization'],
-        params: ['filter'],
-        requestPayloadFields: ['field'],
-        responseHeaders: ['session'],
-        responsePayloadFields: ['id'],
-      };
+    it('should handle non-AxiosError', async () => {
+      const mockError = new Error('Unexpected error');
+      (mockedAxios as unknown as jest.Mock).mockRejectedValueOnce(mockError);
 
-      const mockError = {
-        code: 'ERR_BAD_REQUEST',
-        message: 'Request failed with status code 400',
-        response: {
-          status: 400,
-          data: { error: 'Bad request' },
-        },
-      };
-      
-      (axios as jest.MockedFunction<typeof axios>).mockRejectedValueOnce(mockError);
+      const result = await apiRequest(baseRequestValues);
 
-      const values = {
-        method: 'GET',
-        url: mockUrl,
-        headers: { Authorization: 'Bearer something' },
-        params: { filter: 'test' },
-        data: { field: 'value' },
-      };
-      
-      await apiRequest(values, { logger: mockLogger, maskOptions });
-
-      expect(mockLogger.error).toHaveBeenLastCalledWith(
-        LOG_IDS.API_REQUEST_ERROR,
+      expect(processLoggerMock.error).toHaveBeenCalledWith(
         expect.objectContaining({
-          method: 'GET',
-          url: mockUrl,
-          requestHeaders: maskFieldsMockImplementation(values.headers),
-          params: maskFieldsMockImplementation(values.params),
-          requestPayload: maskFieldsMockImplementation(values.data),
-          error: {
-            message: mockError.message,
-            code: mockError.code,
-            status: mockError.response.status,
-            data: mockError.response.data,
+          logId: LOG_IDS.API_REQUEST_ERROR,
+          data: {
+            method: 'GET',
+            url: 'https://api.example.com/test',
+            requestHeaders: baseRequestValues.headers,
+            params: baseRequestValues.params,
+            requestPayload: baseRequestValues.payload,
+            error: {
+              message: 'Unexpected error',
+              code: 'unknown-error',
+              status: null,
+              data: null
+            }
           }
         }),
-        expect.stringContaining(`HTTP GET request to ${mockUrl} failed with error: ${mockError.message}`)
+        'HTTP GET request to https://api.example.com/test failed with error: Unexpected error'
       );
-    });
-    
-    it('should handle unknown errors correctly', async () => {
-      const unknownError = new Error('Unknown error');
-      
-      (axios as jest.MockedFunction<typeof axios>).mockRejectedValueOnce(unknownError);
-      
-      const result = await apiRequest({
-        method: 'GET',
-        url: mockUrl,
-      });
-      
+
       expect(result).toEqual({
         status: -1,
         error: {
           code: 'unknown-error',
-          message: 'Unknown error',
-          status: null, 
-          data: null,
-        },
+          message: 'Unexpected error',
+          status: null,
+          data: null
+        }
       });
     });
   });

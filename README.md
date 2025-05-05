@@ -39,7 +39,7 @@ npm run dev
 context/              # Documentation for developers and vibe coding to be used as context.
 src/
 ├── constants/        # Global constants used throughout the project
-├── interfaces/       # TypeScript interfaces and types for type safety
+├── definitions/       # TypeScript interfaces and types for type safety
 ├── services/         # Business logic and service layer implementations
 ├── utils/            # Reusable utility functions
 ├── index.ts          # Main application entry point

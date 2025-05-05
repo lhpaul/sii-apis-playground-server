@@ -1,4 +1,4 @@
-import { IProcessLogger } from '../../interfaces/logging.interfaces';
+import { IProcessLogger } from '../../definitions/logging.interfaces';
 
 export interface IApiRequestValues {
   method: string,

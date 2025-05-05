@@ -27,22 +27,28 @@ export async function apiRequest<T>(values: IApiRequestValues, options?: IReques
   };
 
   try {
-    logger.info(LOG_IDS.API_REQUEST_START, {
-      method,
-      url,
-      headers: maskFields(headers, maskOptions.requestHeaders),
-      params: maskFields(params, maskOptions.params),
-      payload: maskFields(data, maskOptions.requestPayloadFields),
+    logger.info({
+      logId: LOG_IDS.API_REQUEST_START,
+      data: {
+        method,
+        url,
+        headers: maskFields(headers, maskOptions.requestHeaders),
+        params: maskFields(params, maskOptions.params),
+        payload: maskFields(data, maskOptions.requestPayloadFields),
+      }
     }, `Making ${method} HTTP request to ${url}`);
     const response: AxiosResponse = await axios(config);
-    logger.info(LOG_IDS.API_REQUEST_SUCCESS, {
-      method,
-      url,
-      requestHeaders:maskFields(headers, maskOptions.requestHeaders),
-      params: maskFields(params, maskOptions.params),
-      requestPayload: maskFields(data, maskOptions.requestPayloadFields),
-      responseHeaders: maskFields(response.headers, maskOptions.responseHeaders),
-      responsePayload: maskFields(response.data, maskOptions.responsePayloadFields),
+    logger.info({
+      logId: LOG_IDS.API_REQUEST_SUCCESS,
+      data: {
+        method,
+        url,
+        requestHeaders:maskFields(headers, maskOptions.requestHeaders),
+        params: maskFields(params, maskOptions.params),
+        requestPayload: maskFields(data, maskOptions.requestPayloadFields),
+        responseHeaders: maskFields(response.headers, maskOptions.responseHeaders),
+        responsePayload: maskFields(response.data, maskOptions.responsePayloadFields),
+      }
     }, `HTTP request to ${url} responded successfully with status ${response.status}`);
     return {
       status: response.status,
@@ -50,18 +56,21 @@ export async function apiRequest<T>(values: IApiRequestValues, options?: IReques
     };
   } catch (error) {
     const axiosError = error as AxiosError;
-    logger.error(LOG_IDS.API_REQUEST_ERROR, {
-      method,
-      url,
-      requestHeaders: maskFields(headers, maskOptions.requestHeaders),
-      params: maskFields(params, maskOptions.params),
-      requestPayload: maskFields(data, maskOptions.requestPayloadFields),
-      error: {
-        message: axiosError.message,
-        code: axiosError.code || 'unknown-error',
-        status: axiosError.response?.status || null,
-        data: axiosError.response?.data || null,
-      },
+    logger.error({
+      logId: LOG_IDS.API_REQUEST_ERROR,
+      data: {
+        method,
+        url,
+        requestHeaders: maskFields(headers, maskOptions.requestHeaders),
+        params: maskFields(params, maskOptions.params),
+        requestPayload: maskFields(data, maskOptions.requestPayloadFields),
+        error: {
+          message: axiosError.message,
+          code: axiosError.code || 'unknown-error',
+          status: axiosError.response?.status || null,
+          data: axiosError.response?.data || null,
+        },
+      }
     }, `HTTP ${method} request to ${url} failed with error: ${axiosError.message}`);
     return {
       status: axiosError.response?.status || -1,

@@ -13,11 +13,13 @@ This project uses single quotes for string literals to maintain consistency acro
 To ensure maintainability and consistency, always use constants instead of hard-coded values in the codebase. This approach improves readability, reduces duplication, and makes it easier to update values when needed.
 
 ### Benefits of Using Constants:
+
 - **Centralized Management**: Constants are defined in a single location, making updates straightforward.
 - **Improved Readability**: Named constants provide context, making the code easier to understand.
 - **Reduced Errors**: Avoids accidental inconsistencies caused by duplicating hard-coded values.
 
 ### Guidelines:
+
 1. Define constants in the `src/constants/` directory if they apply globally or inside a folder when constants only apply to specific context (e.g. `users.service.constants.ts` in the same folder as `users.service.ts`).
 2. Use descriptive and meaningful names for constants.
 
@@ -29,6 +31,7 @@ export const API_BASE_URL = 'https://api.example.com';
 export const DEFAULT_PAGE_SIZE = 20;
 export const SUPPORTED_LANGUAGES = ['en', 'es', 'fr'];
 ```
+
 ```typescript
 // Usage in code
 import { API_BASE_URL, DEFAULT_PAGE_SIZE } from '../constants/app.constants';
@@ -38,16 +41,17 @@ const fetchUsers = async (page: number) => {
   return response.json();
 };
 ```
+
 By following these practices, the codebase remains clean, consistent, and easier to maintain. 
 
 ### Module Import Order
 
 Maintain a consistent import order within each file:
 
-1.  **External Dependencies:**
+1. **External Dependencies:**
     * Import all third-party packages first (e.g., `react`, `lodash`, `axios`).
     * Sort these alphabetically. Treat scoped packages or path aliases beginning with `@` (e.g., `@nestjs/common`, `@components`) as preceding other letters.
-2.  **Internal Project Modules:**
+2. **Internal Project Modules:**
     * Import modules from within this project after external dependencies.
     * Primary sort criterion: Relative path depth. Imports from higher-level directories (e.g., `../../../config`) come before those from closer directories (e.g., `../services`, `./utils`).
     * Secondary sort criterion: Alphabetical order for modules at the same path depth.
@@ -122,6 +126,7 @@ try {
 ```
 
 #### Best Practices:
+
 1. Use meaningful step names to clearly indicate the operation being monitored (e.g., `'update-user'`, `'fetch-data'`).
 2. Always ensure `endStep` is called, even in error scenarios, to maintain accurate performance logs.
 

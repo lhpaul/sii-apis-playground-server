@@ -1,6 +1,6 @@
-import { ServerRoute } from '@hapi/hapi';
+import { RouteOptions } from 'fastify';
 import { proxyEndpoint } from './endpoints/proxy/proxy.endpoint';
 
-export const routes: ServerRoute[] = [
-  proxyEndpoint,
+export const routes: RouteOptions[] = [
+  proxyEndpoint
 ];

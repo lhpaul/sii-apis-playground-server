@@ -1,142 +1,189 @@
-import { Request, ResponseToolkit } from '@hapi/hapi';
-
-import { INTERNAL_ERROR_MESSAGE } from '../../../constants/endpoints.constants';
-import { IProcessLogger } from '../../../interfaces/logging.interfaces';
-import { MakeProxyRequestErrorCode, MakeRequestError } from '../../../services/proxy';
-import { SiiSimpleApiService } from '../../../services/sii-simple-api';
-import { BAD_REQUEST_RESPONSES } from '../proxy.endpoint.constants';
+import { FastifyRequest, FastifyReply, FastifyBaseLogger } from 'fastify';
 import { proxyHandler } from '../proxy.endpoint.handler';
+import { SiiSimpleApiService } from '../../../services/sii-simple-api';
+import { MakeRequestError, ProxyService, MakeProxyRequestErrorCode } from '../../../services/proxy';
+import { BAD_REQUEST_RESPONSES, HEADERS_TO_REMOVE, LOG_IDS, STEP_LABELS } from '../proxy.endpoint.constants';
+import { RequestLogger } from '../../../utils/request-logger/request-logger.class';
+import { INTERNAL_ERROR_MESSAGE } from '../../../constants/endpoints.constants';
 
+// Mock the services
 jest.mock('../../../services/sii-simple-api');
+jest.mock('../../../services/proxy', () => ({
+  ...jest.requireActual('../../../services/proxy'),
+  ProxyService: jest.fn().mockImplementation(() => ({
+    makeRequest: jest.fn()
+  }))
+}));
 
-describe(proxyHandler.name, () => {
-  let mockRequest: Request;
-  let mockResponseToolkit: ResponseToolkit;
-  let mockResponse: any;
-  let mockLogger: IProcessLogger;
+describe('proxyHandler', () => {
+  let mockRequest: Partial<FastifyRequest>;
+  let mockReply: Partial<FastifyReply>;
+  let mockLogger: Partial<RequestLogger>;
+  let mockProxyService: jest.Mocked<ProxyService>;
 
   beforeEach(() => {
-    mockResponse = {
-      response: jest.fn().mockReturnThis(),
-      code: jest.fn(),
-    };
+    // Reset all mocks
+    jest.clearAllMocks();
 
-    mockResponseToolkit = {
-      response: jest.fn(() => mockResponse),
-    } as unknown as ResponseToolkit;
-
+    // Setup mock logger
     mockLogger = {
       startStep: jest.fn(),
       endStep: jest.fn(),
       error: jest.fn(),
+      currentStep: '',
+      level: 'info',
+      fatal: jest.fn(),
+      warn: jest.fn(),
       info: jest.fn(),
-    } as unknown as IProcessLogger;
+      debug: jest.fn(),
+      trace: jest.fn(),
+      silent: jest.fn(),
+      initTime: 0,
+      getStepElapsedTime: jest.fn(),
+      getTotalElapsedTime: jest.fn(),
+      child: jest.fn().mockReturnThis()
+    };
 
+    // Setup mock request
     mockRequest = {
-      method: 'get',
-      params: { path: 'sii-simple-api/resource' },
-      payload: undefined,
+      method: 'GET',
+      body: { test: 'data' },
+      params: { '*': 'sii-simple-api/test' },
       headers: {
-        authorization: 'Bearer aserd'
+        'content-type': 'application/json',
+        'host': 'localhost',
+        'connection': 'keep-alive',
+        'x-custom-header': 'value'
       },
-    } as unknown as Request;
+      log: mockLogger as FastifyBaseLogger
+    };
 
-    jest.clearAllMocks();
+    // Setup mock reply
+    mockReply = {
+      code: jest.fn().mockReturnThis(),
+      send: jest.fn()
+    };
+
+    // Setup mock proxy service
+    mockProxyService = {
+      makeRequest: jest.fn(),
+      baseUrl: 'https://api.example.com'
+    } as unknown as jest.Mocked<ProxyService>;
+
+    // Mock the SiiSimpleApiService.getInstance
+    (SiiSimpleApiService.getInstance as jest.Mock).mockReturnValue(mockProxyService);
   });
 
-  it('should return 200 for OPTIONS method', async () => {
-    (mockRequest as any).method = 'options';
+  it('should handle OPTIONS request', async () => {
+    const request = { ...mockRequest, method: 'OPTIONS' } as FastifyRequest;
 
-    await proxyHandler(mockRequest, mockResponseToolkit, undefined, mockLogger);
+    await proxyHandler(request, mockReply as FastifyReply);
 
-    expect(mockResponseToolkit.response).toHaveBeenCalled();
-    expect(mockResponse.code).toHaveBeenCalledWith(200);
+    expect(mockReply.code).toHaveBeenCalledWith(200);
+    expect(mockReply.send).toHaveBeenCalled();
+    expect(mockProxyService.makeRequest).not.toHaveBeenCalled();
   });
 
   it('should return 400 for unsupported proxy', async () => {
-    (mockRequest as any).params = { path: 'unsupported-proxy/resource' };
+    const request = { ...mockRequest, params: { '*': 'unsupported-proxy/test' } } as FastifyRequest;
 
-    await proxyHandler(mockRequest, mockResponseToolkit, undefined, mockLogger);
+    await proxyHandler(request, mockReply as FastifyReply);
 
-    expect(mockResponseToolkit.response).toHaveBeenCalledWith({
-      code: BAD_REQUEST_RESPONSES.unsupported.code,
-      message: BAD_REQUEST_RESPONSES.unsupported.message,
+    expect(mockReply.code).toHaveBeenCalledWith(400);
+    expect(mockReply.send).toHaveBeenCalledWith(BAD_REQUEST_RESPONSES.unsupported);
+    expect(mockProxyService.makeRequest).not.toHaveBeenCalled();
+  });
+
+  it('should make successful proxy request', async () => {
+    const mockResponse = { data: 'success' };
+    mockProxyService.makeRequest.mockResolvedValueOnce(mockResponse);
+
+    await proxyHandler(mockRequest as FastifyRequest, mockReply as FastifyReply);
+
+    expect(mockLogger.startStep).toHaveBeenCalledWith(STEP_LABELS.PROXY_REQUEST);
+    expect(mockProxyService.makeRequest).toHaveBeenCalledWith({
+      method: 'GET',
+      path: '/test',
+      payload: { test: 'data' },
+      headers: {
+        'content-type': 'application/json',
+        'connection': 'keep-alive',
+        'x-custom-header': 'value'
+      }
+    }, { logger: mockLogger });
+    expect(mockLogger.endStep).toHaveBeenCalledWith(STEP_LABELS.PROXY_REQUEST);
+    expect(mockReply.code).toHaveBeenCalledWith(200);
+    expect(mockReply.send).toHaveBeenCalledWith(mockResponse);
+  });
+
+  it('should handle MakeRequestError with status', async () => {
+    const mockError = new MakeRequestError({
+      code: MakeProxyRequestErrorCode.UNKNOWN_ERROR,
+      message: 'Test error',
+      status: 404
     });
-    expect(mockResponse.code).toHaveBeenCalledWith(400);
+    mockProxyService.makeRequest.mockRejectedValueOnce(mockError);
+
+    await proxyHandler(mockRequest as FastifyRequest, mockReply as FastifyReply);
+
+    expect(mockLogger.endStep).toHaveBeenCalledWith(STEP_LABELS.PROXY_REQUEST);
+    expect(mockReply.code).toHaveBeenCalledWith(mockError.status);
+    expect(mockReply.send).toHaveBeenCalledWith({
+      code: MakeProxyRequestErrorCode.UNKNOWN_ERROR,
+      message: mockError.message
+    });
+    expect(mockLogger.error).not.toHaveBeenCalled();
+  });
+
+  it('should handle unknown errors', async () => {
+    const mockError = new Error('Unknown error');
+    mockProxyService.makeRequest.mockRejectedValueOnce(mockError);
+
+    await proxyHandler(mockRequest as FastifyRequest, mockReply as FastifyReply);
+
+    expect(mockLogger.endStep).toHaveBeenCalledWith(STEP_LABELS.PROXY_REQUEST);
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      expect.objectContaining({
+        logId: LOG_IDS.UNKNOWN_ERROR,
+        errorCode: '01',
+        error: mockError,
+        step: ''
+      }),
+      `Unknown error in step : ${mockError}`
+    );
+    expect(mockReply.code).toHaveBeenCalledWith(500);
+    expect(mockReply.send).toHaveBeenCalledWith({
+      code: '01',
+      message: INTERNAL_ERROR_MESSAGE
+    });
   });
 
   it('should remove unnecessary headers', async () => {
-    const mockMakeRequest = jest.fn().mockResolvedValue({ success: true });
-    (SiiSimpleApiService.getInstance as jest.Mock).mockReturnValue({
-      makeRequest: mockMakeRequest,
-    });
-    (mockRequest as any).headers = { host: 'localhost' };
-    await proxyHandler(mockRequest, mockResponseToolkit, undefined, mockLogger);
+    const mockResponse = { data: 'success' };
+    mockProxyService.makeRequest.mockResolvedValueOnce(mockResponse);
 
-    expect(mockMakeRequest).toHaveBeenCalledWith({
-      method: mockRequest.method,
-      path: '/resource',
-      payload: mockRequest.payload,
-      headers: {},
-    }, { logger: mockLogger });
-    expect(mockResponseToolkit.response).toHaveBeenCalledWith({ success: true });
-    expect(mockResponse.code).toHaveBeenCalledWith(200);
-  });
+    // Add all headers that should be removed
+    const request = {
+      ...mockRequest,
+      headers: {
+        ...mockRequest.headers,
+        ...HEADERS_TO_REMOVE.reduce((acc, header) => ({ ...acc, [header]: 'value' }), {})
+      }
+    } as FastifyRequest;
 
-  it('should call the proxy service and return 200 on success', async () => {
-    const mockMakeRequest = jest.fn().mockResolvedValue({ success: true });
-    (SiiSimpleApiService.getInstance as jest.Mock).mockReturnValue({
-      makeRequest: mockMakeRequest,
-    });
+    await proxyHandler(request, mockReply as FastifyReply);
 
-    await proxyHandler(mockRequest, mockResponseToolkit, undefined, mockLogger);
-
-    expect(mockMakeRequest).toHaveBeenCalledWith({
-      method: mockRequest.method,
-      path: '/resource',
-      payload: mockRequest.payload,
-      headers: mockRequest.headers,
-    }, { logger: mockLogger });
-    expect(mockResponseToolkit.response).toHaveBeenCalledWith({ success: true });
-    expect(mockResponse.code).toHaveBeenCalledWith(200);
-  });
-
-  it('should return the error response from MakeRequestError with status', async () => {
-    const errorMock = {
-      code: MakeProxyRequestErrorCode.UNKNOWN_ERROR,
-      message: 'Test error',
-      status: 404,
-      data: { error: 'Test error' },
+    const expectedHeaders = {
+      'content-type': 'application/json',
+      'connection': 'keep-alive',
+      'x-custom-header': 'value'
     };
-    const mockMakeRequest = jest.fn().mockRejectedValue(
-      new MakeRequestError(errorMock)
+
+    expect(mockProxyService.makeRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headers: expectedHeaders
+      }),
+      expect.any(Object)
     );
-    (SiiSimpleApiService.getInstance as jest.Mock).mockReturnValue({
-      makeRequest: mockMakeRequest,
-    });
-
-    await proxyHandler(mockRequest, mockResponseToolkit, undefined, mockLogger);
-
-    expect(mockResponseToolkit.response).toHaveBeenCalledWith({
-      code: errorMock.code,
-      message: errorMock.message,
-    });
-    expect(mockResponse.code).toHaveBeenCalledWith(404);
   });
-
-  it('should return 500 for unknown errors', async () => {
-    const mockMakeRequest = jest.fn().mockRejectedValue(new Error('Unknown error'));
-    (SiiSimpleApiService.getInstance as jest.Mock).mockReturnValue({
-      makeRequest: mockMakeRequest,
-    });
-
-    await proxyHandler(mockRequest, mockResponseToolkit, undefined, mockLogger);
-
-    expect(mockResponseToolkit.response).toHaveBeenCalledWith({
-      code: '01',
-      message: INTERNAL_ERROR_MESSAGE,
-    });
-    expect(mockResponse.code).toHaveBeenCalledWith(500);
-  });
-
 });
