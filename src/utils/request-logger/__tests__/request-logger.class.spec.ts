@@ -3,7 +3,7 @@ import { Bindings } from 'pino';
 import { ChildLoggerOptions } from 'fastify/types/logger';
 
 import { RequestLogger } from '../request-logger.class';
-import { LOG_IDS } from '../request-logger.class.constants';
+import { LOGS } from '../request-logger.class.constants';
 describe('RequestLogger', () => {
   let mockLogger: jest.Mocked<FastifyBaseLogger>;
   let requestLogger: RequestLogger;
@@ -104,32 +104,32 @@ describe('RequestLogger', () => {
     });
 
     it('should start a step and update currentStep', () => {
-      const stepLabel = 'test-step';
-      requestLogger.startStep(stepLabel);
-      expect(requestLogger.currentStep).toBe(stepLabel);
+      const step = { id: 'test-step', obfuscatedId: '01' };
+      requestLogger.startStep(step.id, step.obfuscatedId);
+      expect(requestLogger.lastStep).toEqual(step);
       expect(mockLogger.trace).toHaveBeenCalledWith(
-        `step ${stepLabel} started`,
+        LOGS.STEP_START.logMessage(step.id),
         expect.objectContaining({
-          logId: LOG_IDS.STEP_START,
-          step: stepLabel,
+          logId: LOGS.STEP_START.logId,
+          step: step.id,
           totalElapsedTime: 0
         })
       );
     });
 
     it('should end a step and log the elapsed time', () => {
-      const stepLabel = 'test-step';
-      requestLogger.startStep(stepLabel);
+      const step = { id: 'test-step', obfuscatedId: '01' };
+      requestLogger.startStep(step.id, step.obfuscatedId);
 
       // Mock a later time for the end step
       jest.useFakeTimers().setSystemTime(new Date(BASE_TIME + 100));
-      requestLogger.endStep(stepLabel);
+      requestLogger.endStep(step.id);
 
       expect(mockLogger.trace).toHaveBeenCalledWith(
-        `step ${stepLabel} took 100 ms`,
+        LOGS.STEP_END.logMessage(step.id),
         expect.objectContaining({
-          logId: LOG_IDS.STEP_END,
-          step: stepLabel,
+          logId: LOGS.STEP_END.logId,
+          step: step.id,
           elapsedTimeFromPreviousStep: 100,
           totalElapsedTime: 100
         })

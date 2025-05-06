@@ -4,6 +4,7 @@ import fastify, { FastifyInstance } from 'fastify';
 
 import {
     COR_CONFIG,
+    INTERNAL_ERROR_VALUES,
     RESOURCE_NOT_FOUND_ERROR,
     SERVER_LOGGER_CONFIG,
     SERVER_START_VALUES,
@@ -33,6 +34,7 @@ export const init = async function(): Promise<FastifyInstance> {
         server.route(route);
     });
 
+    // Handle 404 errors
     server.setNotFoundHandler((request, reply) => {
         request.log.warn({
             logId: RESOURCE_NOT_FOUND_ERROR.logId,
@@ -45,6 +47,19 @@ export const init = async function(): Promise<FastifyInstance> {
             code: RESOURCE_NOT_FOUND_ERROR.responseCode,
             message: RESOURCE_NOT_FOUND_ERROR.responseMessage
         });
+    });
+
+    // Handle 500 errors
+    server.setErrorHandler((error, request, reply) => {
+        const lastStep = request.log.lastStep;
+        const errorCode = lastStep.obfuscatedId ?? '-1';
+        request.log.error({
+            logId: INTERNAL_ERROR_VALUES.logId,
+            errorCode,
+            error,
+            step: lastStep
+          }, INTERNAL_ERROR_VALUES.logMessage({ error, step: lastStep.id }));
+        return reply.code(500).send({ code: errorCode, message: INTERNAL_ERROR_VALUES.responseMessage });
     });
 
     // Wrap request logger

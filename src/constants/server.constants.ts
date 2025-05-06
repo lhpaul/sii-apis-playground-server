@@ -21,6 +21,12 @@ export const RESOURCE_NOT_FOUND_ERROR = {
     responseMessage: 'The requested resource was not found'
 }
 
+export const INTERNAL_ERROR_VALUES = {
+    logId: 'internal-error',
+    logMessage: ({ error, step }: { error: Error, step: string }) : string => `An internal error occurred: ${error.message} at step: ${step}`,
+    responseMessage: 'An internal error occurred'
+}
+
 export const TIMEOUT_ERROR = {
     logId: 'request-timeout',
     logMessage: ({ reply }: { reply: FastifyReply }) : string => `Request timed out after ${reply.elapsedTime}ms`,
