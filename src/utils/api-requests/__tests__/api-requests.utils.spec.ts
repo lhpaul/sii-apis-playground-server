@@ -107,13 +107,11 @@ describe(apiRequest.name, () => {
       expect(processLoggerMock.info).toHaveBeenCalledWith(
         expect.objectContaining({
           logId: LOGS.API_REQUEST_START.logId,
-          data: {
-            method: baseRequestValues.method,
-            url: baseRequestValues.url,
-            headers: baseRequestValues.headers,
-            params: baseRequestValues.params,
-            payload: baseRequestValues.payload
-          }
+          method: baseRequestValues.method,
+          url: baseRequestValues.url,
+          headers: baseRequestValues.headers,
+          params: baseRequestValues.params,
+          payload: baseRequestValues.payload
         }),
         LOGS.API_REQUEST_START.logMessage({ url: baseRequestValues.url, method: baseRequestValues.method })
       );
@@ -121,16 +119,14 @@ describe(apiRequest.name, () => {
       expect(processLoggerMock.info).toHaveBeenCalledWith(
         expect.objectContaining({
           logId: LOGS.API_REQUEST_SUCCESS.logId,
-          data: {
-            method: baseRequestValues.method,
-            url: baseRequestValues.url,
-            duration,
-            requestHeaders: baseRequestValues.headers,
-            params: baseRequestValues.params,
-            requestPayload: baseRequestValues.payload,
-            responseHeaders: mockResponse.headers,
-            responsePayload: mockResponse.data
-          }
+          method: baseRequestValues.method,
+          url: baseRequestValues.url,
+          duration,
+          requestHeaders: baseRequestValues.headers,
+          params: baseRequestValues.params,
+          requestPayload: baseRequestValues.payload,
+          responseHeaders: mockResponse.headers,
+          responsePayload: mockResponse.data
         }),
         LOGS.API_REQUEST_SUCCESS.logMessage({ url: baseRequestValues.url, method: baseRequestValues.method, duration })
       );
@@ -213,19 +209,17 @@ describe(apiRequest.name, () => {
       expect(processLoggerMock.error).toHaveBeenCalledWith(
         expect.objectContaining({
           logId: LOGS.API_REQUEST_ERROR.logId,
-          data: {
-            method: baseRequestValues.method,
-            url: baseRequestValues.url,
-            duration,
-            requestHeaders: baseRequestValues.headers,
-            params: baseRequestValues.params,
-            requestPayload: baseRequestValues.payload,
-            error: {
-              message: mockError.message,
-              code: mockError.code,
-              status: mockError.response?.status,
-              data: mockError.response?.data
-            }
+          method: baseRequestValues.method,
+          url: baseRequestValues.url,
+          duration,
+          requestHeaders: baseRequestValues.headers,
+          params: baseRequestValues.params,
+          requestPayload: baseRequestValues.payload,
+          error: {
+            message: mockError.message,
+            code: mockError.code,
+            status: mockError.response?.status,
+            data: mockError.response?.data
           }
         }),
         LOGS.API_REQUEST_ERROR.logMessage({ url: baseRequestValues.url, method: baseRequestValues.method, error: mockError, duration })
@@ -255,19 +249,17 @@ describe(apiRequest.name, () => {
       expect(processLoggerMock.error).toHaveBeenCalledWith(
         expect.objectContaining({
           logId: LOGS.API_REQUEST_ERROR.logId,
-          data: {
-            method: baseRequestValues.method,
-            url: baseRequestValues.url,
-            duration,
-            requestHeaders: baseRequestValues.headers,
-            params: baseRequestValues.params,
-            requestPayload: baseRequestValues.payload,
-            error: {
-              message: mockError.message,
-              code: mockError.code,
-              status: null,
-              data: null
-            }
+          method: baseRequestValues.method,
+          url: baseRequestValues.url,
+          duration,
+          requestHeaders: baseRequestValues.headers,
+          params: baseRequestValues.params,
+          requestPayload: baseRequestValues.payload,
+          error: {
+            message: mockError.message,
+            code: mockError.code,
+            status: null,
+            data: null
           }
         }),
         LOGS.API_REQUEST_ERROR.logMessage({ url: baseRequestValues.url, method: baseRequestValues.method, error: mockError, duration })
@@ -293,19 +285,17 @@ describe(apiRequest.name, () => {
       expect(processLoggerMock.error).toHaveBeenCalledWith(
         expect.objectContaining({
           logId: LOGS.API_REQUEST_ERROR.logId,
-          data: {
-            method: baseRequestValues.method,
-            url: baseRequestValues.url,
-            duration,
-            requestHeaders: baseRequestValues.headers,
-            params: baseRequestValues.params,
-            requestPayload: baseRequestValues.payload,
-            error: {
-              message: mockError.message,
-              code: DEFAULT_ERROR_CODE,
-              status: null,
-              data: null
-            }
+          method: baseRequestValues.method,
+          url: baseRequestValues.url,
+          duration,
+          requestHeaders: baseRequestValues.headers,
+          params: baseRequestValues.params,
+          requestPayload: baseRequestValues.payload,
+          error: {
+            message: mockError.message,
+            code: DEFAULT_ERROR_CODE,
+            status: null,
+            data: null
           }
         }),
         LOGS.API_REQUEST_ERROR.logMessage({ url: baseRequestValues.url, method: baseRequestValues.method, error: mockError, duration })

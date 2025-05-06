@@ -16,7 +16,7 @@ jest.mock('../../../services/proxy', () => ({
   }))
 }));
 
-describe('proxyHandler', () => {
+describe(proxyHandler.name, () => {
   let mockRequest: Partial<FastifyRequest>;
   let mockReply: Partial<FastifyReply>;
   let mockLogger: Partial<RequestLogger>;
@@ -121,7 +121,11 @@ describe('proxyHandler', () => {
     const mockError = new MakeRequestError({
       code: MakeProxyRequestErrorCode.UNKNOWN_ERROR,
       message: 'Test error',
-      status: 404
+      status: 404,
+      data: {
+        error: 'Test error',
+        status: 404
+      }
     });
     mockProxyService.makeRequest.mockRejectedValueOnce(mockError);
 
@@ -131,7 +135,8 @@ describe('proxyHandler', () => {
     expect(mockReply.code).toHaveBeenCalledWith(mockError.status);
     expect(mockReply.send).toHaveBeenCalledWith({
       code: MakeProxyRequestErrorCode.UNKNOWN_ERROR,
-      message: mockError.message
+      message: mockError.message,
+      data: mockError.data
     });
   });
 
@@ -142,7 +147,7 @@ describe('proxyHandler', () => {
     await expect(proxyHandler(mockRequest as FastifyRequest, mockReply as FastifyReply))
       .rejects.toThrow(mockError);
 
-    expect(mockLogger.endStep).toHaveBeenCalledWith('proxy-request');
+    expect(mockLogger.endStep).toHaveBeenCalledWith(STEPS.PROXY_REQUEST.id);
     expect(mockReply.code).not.toHaveBeenCalled();
     expect(mockReply.send).not.toHaveBeenCalled();
   });

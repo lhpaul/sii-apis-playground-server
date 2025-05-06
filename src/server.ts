@@ -38,10 +38,8 @@ export const init = async function(): Promise<FastifyInstance> {
     server.setNotFoundHandler((request, reply) => {
         request.log.warn({
             logId: RESOURCE_NOT_FOUND_ERROR.logId,
-            data: { 
-                requestId: request.id,
-                url: request.url
-            }
+            requestId: request.id,
+            url: request.url
         }, RESOURCE_NOT_FOUND_ERROR.logMessage);
         reply.status(404).send({
             code: RESOURCE_NOT_FOUND_ERROR.responseCode,
@@ -74,10 +72,8 @@ export const init = async function(): Promise<FastifyInstance> {
     server.addHook('onTimeout', (request, reply) => {
         request.log.error({
             logId: TIMEOUT_ERROR.logId,
-            data: {
-                requestId: request.id,
-                elapsedTime: reply.elapsedTime
-            }
+            requestId: request.id,
+            elapsedTime: reply.elapsedTime
         }, TIMEOUT_ERROR.logMessage({ reply }));
     });
     return server;
@@ -91,18 +87,14 @@ export const start = async function (): Promise<void> {
     
     server.log.info({
         logId: SERVER_START_VALUES.logId,
-        data: {
-            address
-        }
+        address
     }, SERVER_START_VALUES.logMessage({ address }));
 };
 
 process.on('unhandledRejection', (err: Error) => {
     server.log.error({
         logId: UNHANDLED_REJECTION_ERROR.logId,
-        data: {
-            error: err,
-        }
+        error: err,
     }, UNHANDLED_REJECTION_ERROR.logMessage({ err }));
     console.error('unhandledRejection', err);
     process.exit(1);
@@ -111,7 +103,7 @@ process.on('unhandledRejection', (err: Error) => {
 process.on('uncaughtException', (err: Error) => {
     server.log.error({
         logId: UNCAUGHT_EXCEPTION_ERROR.logId,
-        data: { error: err }
+        error: err
     }, UNCAUGHT_EXCEPTION_ERROR.logMessage({ err }));
     console.error('uncaughtException', err);
     process.exit(1);

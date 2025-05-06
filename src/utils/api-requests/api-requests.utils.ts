@@ -29,28 +29,24 @@ export async function apiRequest<T>(values: IApiRequestValues, options?: IReques
   try {
     logger.info({
       logId: LOGS.API_REQUEST_START.logId,
-      data: {
-        method,
-        url,
-        headers: maskFields(headers, maskOptions.requestHeaders),
-        params: maskFields(params, maskOptions.params),
-        payload: maskFields(data, maskOptions.requestPayloadFields),
-      }
+      method,
+      url,
+      headers: maskFields(headers, maskOptions.requestHeaders),
+      params: maskFields(params, maskOptions.params),
+      payload: maskFields(data, maskOptions.requestPayloadFields),
     }, LOGS.API_REQUEST_START.logMessage({ method, url }));
     const response: AxiosResponse = await axios(config);
     const duration = Date.now() - startTime;
     logger.info({
       logId: LOGS.API_REQUEST_SUCCESS.logId,
-      data: {
-        method,
-        url,
-        duration,
-        requestHeaders:maskFields(headers, maskOptions.requestHeaders),
-        params: maskFields(params, maskOptions.params),
-        requestPayload: maskFields(data, maskOptions.requestPayloadFields),
-        responseHeaders: maskFields(response.headers, maskOptions.responseHeaders),
-        responsePayload: maskFields(response.data, maskOptions.responsePayloadFields),
-      }
+      method,
+      url,
+      duration,
+      requestHeaders:maskFields(headers, maskOptions.requestHeaders),
+      params: maskFields(params, maskOptions.params),
+      requestPayload: maskFields(data, maskOptions.requestPayloadFields),
+      responseHeaders: maskFields(response.headers, maskOptions.responseHeaders),
+      responsePayload: maskFields(response.data, maskOptions.responsePayloadFields),
     }, LOGS.API_REQUEST_SUCCESS.logMessage({ method, url, duration }));
     return {
       status: response.status,
@@ -61,20 +57,18 @@ export async function apiRequest<T>(values: IApiRequestValues, options?: IReques
     const axiosError = error as AxiosError;
     logger.error({
       logId: LOGS.API_REQUEST_ERROR.logId,
-      data: {
-        method,
-        url,
-        duration,
-        requestHeaders: maskFields(headers, maskOptions.requestHeaders),
-        params: maskFields(params, maskOptions.params),
-        requestPayload: maskFields(data, maskOptions.requestPayloadFields),
-        error: {
-          message: axiosError.message,
-          code: axiosError.code || DEFAULT_ERROR_CODE,
-          status: axiosError.response?.status || null,
-          data: axiosError.response?.data || null,
-        },
-      }
+      method,
+      url,
+      duration,
+      requestHeaders: maskFields(headers, maskOptions.requestHeaders),
+      params: maskFields(params, maskOptions.params),
+      requestPayload: maskFields(data, maskOptions.requestPayloadFields),
+      error: {
+        message: axiosError.message,
+        code: axiosError.code || DEFAULT_ERROR_CODE,
+        status: axiosError.response?.status || null,
+        data: axiosError.response?.data || null,
+      },
     }, LOGS.API_REQUEST_ERROR.logMessage({ method, url, error: axiosError, duration }));
     return {
       status: axiosError.response?.status || -1,
