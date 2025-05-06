@@ -2,6 +2,16 @@ import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
 import fastify, { FastifyInstance } from 'fastify';
 
+import {
+    COR_CONFIG,
+    INTERNAL_ERROR_VALUES,
+    RESOURCE_NOT_FOUND_ERROR,
+    SERVER_LOGGER_CONFIG,
+    SERVER_START_VALUES,
+    TIMEOUT_ERROR,
+    UNCAUGHT_EXCEPTION_ERROR,
+    UNHANDLED_REJECTION_ERROR
+} from './constants/server.constants';
 import { routes } from './routes';
 import { RequestLogger } from './utils/request-logger/request-logger.class';
 
@@ -9,17 +19,14 @@ export let server: FastifyInstance;
 
 export const init = async function(): Promise<FastifyInstance> {
     server = fastify({
-        logger: {
-            level: process.env.NODE_ENV !== 'production' ? 'debug' : 'info'
-        }
+        logger: SERVER_LOGGER_CONFIG
     });
 
     if (process.env.NODE_ENV !== 'production') {
-        await server.register(cors, {
-            origin: 'localhost'
-        });
+        await server.register(cors, COR_CONFIG);
     }
 
+    // Help secure the api by setting HTTP response headers
     server.register(helmet, { global: true })
 
     // Load routes
@@ -27,12 +34,30 @@ export const init = async function(): Promise<FastifyInstance> {
         server.route(route);
     });
 
-    server.setNotFoundHandler((_request, reply) => {
-        // TODO: move this values to constants
+    // Handle 404 errors
+    server.setNotFoundHandler((request, reply) => {
+        request.log.warn({
+            logId: RESOURCE_NOT_FOUND_ERROR.logId,
+            requestId: request.id,
+            url: request.url
+        }, RESOURCE_NOT_FOUND_ERROR.logMessage);
         reply.status(404).send({
-            error: 'Not found',
-            message: 'The requested resource was not found'
+            code: RESOURCE_NOT_FOUND_ERROR.responseCode,
+            message: RESOURCE_NOT_FOUND_ERROR.responseMessage
         });
+    });
+
+    // Handle 500 errors
+    server.setErrorHandler((error, request, reply) => {
+        const lastStep = request.log.lastStep;
+        const errorCode = lastStep.obfuscatedId ?? '-1';
+        request.log.error({
+            logId: INTERNAL_ERROR_VALUES.logId,
+            errorCode,
+            error,
+            step: lastStep
+          }, INTERNAL_ERROR_VALUES.logMessage({ error, step: lastStep.id }));
+        return reply.code(500).send({ code: errorCode, message: INTERNAL_ERROR_VALUES.responseMessage });
     });
 
     // Wrap request logger
@@ -45,47 +70,41 @@ export const init = async function(): Promise<FastifyInstance> {
 
     // Add hook for timeout
     server.addHook('onTimeout', (request, reply) => {
-        request.log.warn({
-            logId: 'request-timeout',
-            data: {
-                requestId: request.id,
-                elapsedTime: reply.elapsedTime
-            }
-        }, `Request timed out after ${reply.elapsedTime}ms`);
+        request.log.error({
+            logId: TIMEOUT_ERROR.logId,
+            requestId: request.id,
+            elapsedTime: reply.elapsedTime
+        }, TIMEOUT_ERROR.logMessage({ reply }));
     });
-
     return server;
 };
 
 export const start = async function (): Promise<void> {
     const address = await server.listen({
-        port: Number(process.env.PORT) || 4000,
-        host: '0.0.0.0'
+        port: SERVER_START_VALUES.port,
+        host: SERVER_START_VALUES.host
     });
     
     server.log.info({
-        logId: 'server-start',
-        data: {
-            address
-        }
-    }, `Server started on ${address}`);
+        logId: SERVER_START_VALUES.logId,
+        address
+    }, SERVER_START_VALUES.logMessage({ address }));
 };
 
-process.on('unhandledRejection', (err) => {
+process.on('unhandledRejection', (err: Error) => {
     server.log.error({
-        logId: 'unhandled-rejection',
-        data: {
-            error: err,
-        }
-    }, `Unhandled rejection: ${err}`);
+        logId: UNHANDLED_REJECTION_ERROR.logId,
+        error: err,
+    }, UNHANDLED_REJECTION_ERROR.logMessage({ err }));
     console.error('unhandledRejection', err);
     process.exit(1);
 });
 
-process.on('uncaughtException', (err) => {
+process.on('uncaughtException', (err: Error) => {
     server.log.error({
-        logId: 'uncaught-exception',
-        data: { error: err }
-    }, `Uncaught exception: ${err}`);
+        logId: UNCAUGHT_EXCEPTION_ERROR.logId,
+        error: err
+    }, UNCAUGHT_EXCEPTION_ERROR.logMessage({ err }));
     console.error('uncaughtException', err);
+    process.exit(1);
 });

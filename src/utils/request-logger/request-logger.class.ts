@@ -2,15 +2,15 @@ import { FastifyBaseLogger } from 'fastify';
 import { Bindings } from 'pino';
 import { ChildLoggerOptions } from 'fastify/types/logger';
 
-import { IProcessLogger } from '../../definitions/logging.interfaces';
-import { LOG_IDS } from './request-logger.class.constants';
+import { IProcessLogger, IProcessStep } from '../../definitions/logging.interfaces';
+import { LOGS } from './request-logger.class.constants';
 
 export class RequestLogger implements IProcessLogger  {
 
   public initTime: number;
   private _activeSteps: {[labe: string]:{ initTime: number; }} = {};
   private _logger: FastifyBaseLogger;
-  private _currentStep: string = '';
+  private _lastStep: IProcessStep = { id: '' };
   constructor(options: {
     logger: FastifyBaseLogger;
   }) {
@@ -18,8 +18,8 @@ export class RequestLogger implements IProcessLogger  {
     this.initTime = new Date().getTime();
   }
 
-  get currentStep(): string {
-    return this._currentStep;
+  get lastStep(): IProcessStep {
+    return this._lastStep;
   }
 
   get level(): string {
@@ -47,15 +47,15 @@ export class RequestLogger implements IProcessLogger  {
     return new Date().getTime() - step.initTime;
   }
 
-  startStep(label: string): void {
+  startStep(label: string, obfuscatedId?: string): void {
     const now = new Date().getTime();
     this._activeSteps[label] = { initTime: now };
-    this._logger.trace(`step ${label} started`, {
-      logId: LOG_IDS.STEP_START,
+    this._logger.info(LOGS.STEP_START.logMessage(label), {
+      logId: LOGS.STEP_START.logId,
       step: label,
       totalElapsedTime: now - this.initTime,
     });
-    this._currentStep = label;
+    this._lastStep = { id: label, obfuscatedId };
   }
 
   endStep(label: string): void {
@@ -65,8 +65,8 @@ export class RequestLogger implements IProcessLogger  {
     }
     const now = new Date().getTime();
     const elapsedTimeFromPreviousStep = now - step.initTime;
-    this._logger.trace(`step ${label} took ${elapsedTimeFromPreviousStep} ms`, {
-      logId: LOG_IDS.STEP_END,
+    this._logger.info(LOGS.STEP_END.logMessage(label), {
+      logId: LOGS.STEP_END.logId,
       step: label,
       elapsedTimeFromPreviousStep,
       totalElapsedTime: now - this.initTime

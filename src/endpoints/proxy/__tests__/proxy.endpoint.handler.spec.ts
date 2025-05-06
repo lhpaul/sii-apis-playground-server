@@ -1,10 +1,11 @@
 import { FastifyRequest, FastifyReply, FastifyBaseLogger } from 'fastify';
-import { proxyHandler } from '../proxy.endpoint.handler';
-import { SiiSimpleApiService } from '../../../services/sii-simple-api';
-import { MakeRequestError, ProxyService, MakeProxyRequestErrorCode } from '../../../services/proxy';
-import { BAD_REQUEST_RESPONSES, HEADERS_TO_REMOVE, LOG_IDS, STEP_LABELS } from '../proxy.endpoint.constants';
+
 import { RequestLogger } from '../../../utils/request-logger/request-logger.class';
-import { INTERNAL_ERROR_MESSAGE } from '../../../constants/endpoints.constants';
+import { MakeRequestError, ProxyService, MakeProxyRequestErrorCode } from '../../../services/proxy';
+import { SiiSimpleApiService } from '../../../services/sii-simple-api';
+import { BAD_REQUEST_RESPONSES, HEADERS_TO_REMOVE, STEPS } from '../proxy.endpoint.constants';
+import { proxyHandler } from '../proxy.endpoint.handler';
+import { IProcessStep } from '../../../definitions/logging.interfaces';
 
 // Mock the services
 jest.mock('../../../services/sii-simple-api');
@@ -15,7 +16,7 @@ jest.mock('../../../services/proxy', () => ({
   }))
 }));
 
-describe('proxyHandler', () => {
+describe(proxyHandler.name, () => {
   let mockRequest: Partial<FastifyRequest>;
   let mockReply: Partial<FastifyReply>;
   let mockLogger: Partial<RequestLogger>;
@@ -30,7 +31,7 @@ describe('proxyHandler', () => {
       startStep: jest.fn(),
       endStep: jest.fn(),
       error: jest.fn(),
-      currentStep: '',
+      lastStep: { id: '' } as IProcessStep,
       level: 'info',
       fatal: jest.fn(),
       warn: jest.fn(),
@@ -100,7 +101,7 @@ describe('proxyHandler', () => {
 
     await proxyHandler(mockRequest as FastifyRequest, mockReply as FastifyReply);
 
-    expect(mockLogger.startStep).toHaveBeenCalledWith(STEP_LABELS.PROXY_REQUEST);
+    expect(mockLogger.startStep).toHaveBeenCalledWith(STEPS.PROXY_REQUEST.id, STEPS.PROXY_REQUEST.obfuscatedId);
     expect(mockProxyService.makeRequest).toHaveBeenCalledWith({
       method: 'GET',
       path: '/test',
@@ -111,7 +112,7 @@ describe('proxyHandler', () => {
         'x-custom-header': 'value'
       }
     }, { logger: mockLogger });
-    expect(mockLogger.endStep).toHaveBeenCalledWith(STEP_LABELS.PROXY_REQUEST);
+    expect(mockLogger.endStep).toHaveBeenCalledWith(STEPS.PROXY_REQUEST.id);
     expect(mockReply.code).toHaveBeenCalledWith(200);
     expect(mockReply.send).toHaveBeenCalledWith(mockResponse);
   });
@@ -120,42 +121,35 @@ describe('proxyHandler', () => {
     const mockError = new MakeRequestError({
       code: MakeProxyRequestErrorCode.UNKNOWN_ERROR,
       message: 'Test error',
-      status: 404
+      status: 404,
+      data: {
+        error: 'Test error',
+        status: 404
+      }
     });
     mockProxyService.makeRequest.mockRejectedValueOnce(mockError);
 
     await proxyHandler(mockRequest as FastifyRequest, mockReply as FastifyReply);
 
-    expect(mockLogger.endStep).toHaveBeenCalledWith(STEP_LABELS.PROXY_REQUEST);
+    expect(mockLogger.endStep).toHaveBeenCalledWith(STEPS.PROXY_REQUEST.id);
     expect(mockReply.code).toHaveBeenCalledWith(mockError.status);
     expect(mockReply.send).toHaveBeenCalledWith({
       code: MakeProxyRequestErrorCode.UNKNOWN_ERROR,
-      message: mockError.message
+      message: mockError.message,
+      data: mockError.data
     });
-    expect(mockLogger.error).not.toHaveBeenCalled();
   });
 
-  it('should handle unknown errors', async () => {
+  it('should throw unknown errors', async () => {
     const mockError = new Error('Unknown error');
     mockProxyService.makeRequest.mockRejectedValueOnce(mockError);
 
-    await proxyHandler(mockRequest as FastifyRequest, mockReply as FastifyReply);
+    await expect(proxyHandler(mockRequest as FastifyRequest, mockReply as FastifyReply))
+      .rejects.toThrow(mockError);
 
-    expect(mockLogger.endStep).toHaveBeenCalledWith(STEP_LABELS.PROXY_REQUEST);
-    expect(mockLogger.error).toHaveBeenCalledWith(
-      expect.objectContaining({
-        logId: LOG_IDS.UNKNOWN_ERROR,
-        errorCode: '01',
-        error: mockError,
-        step: ''
-      }),
-      `Unknown error in step : ${mockError}`
-    );
-    expect(mockReply.code).toHaveBeenCalledWith(500);
-    expect(mockReply.send).toHaveBeenCalledWith({
-      code: '01',
-      message: INTERNAL_ERROR_MESSAGE
-    });
+    expect(mockLogger.endStep).toHaveBeenCalledWith(STEPS.PROXY_REQUEST.id);
+    expect(mockReply.code).not.toHaveBeenCalled();
+    expect(mockReply.send).not.toHaveBeenCalled();
   });
 
   it('should remove unnecessary headers', async () => {

@@ -156,15 +156,15 @@ describe(createEndpoint.name, () => {
         expect.objectContaining({
           id: LOG_IDS.ON_REQUEST,
           data: {
-            method: 'GET',
-            url: '/test',
+            method: mockRequest.method,
+            url: mockRequest.url,
             params: mockRequest.params,
             query: mockRequest.query,
             body: mockRequest.body,
             headers: mockRequest.headers
           }
         }),
-        'On Request: GET /test'
+        `On Request: ${mockRequest.method} ${mockRequest.url}`
       );
     });
 
@@ -219,7 +219,7 @@ describe(createEndpoint.name, () => {
             responsePayload: payload
           }
         }),
-        'On Send: statusCode: 200 responseTime: 100ms'
+        `On Send: statusCode: ${mockReply.statusCode} responseTime: ${mockReply.elapsedTime}ms`
       );
     });
 

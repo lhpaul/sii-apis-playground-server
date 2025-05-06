@@ -5,13 +5,9 @@ export const BAD_REQUEST_RESPONSES = {
   }
 };
 
-export const STEP_LABELS = {
-  PROXY_REQUEST: 'proxy-request',
+export const STEPS = {
+  PROXY_REQUEST: { id: 'proxy-request', obfuscatedId: '01' },
 };
-
-export const LOG_IDS = {
-  UNKNOWN_ERROR: 'unknown-error'
-}
 
 export const HEADERS_TO_REMOVE = [
   'content-length',

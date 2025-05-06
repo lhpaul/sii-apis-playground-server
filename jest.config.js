@@ -19,10 +19,12 @@ export default {
   coverageDirectory: 'coverage',
   collectCoverageFrom: [
     'src/**/*.ts',
-    '!src/**/*.d.ts',
     '!src/**/index.ts',
+    '!src/**/*.d.ts',
+    '!src/**/*.constants.ts',
+    '!src/**/*.mocks.ts',
+    '!src/**/*.interfaces.ts',
     '!src/routes.ts',
     '!src/server.ts',
-    '!src/**/*.mocks.ts',
   ],
 };
