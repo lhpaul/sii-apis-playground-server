@@ -1,4 +1,10 @@
-export const LOG_IDS = {
-  STEP_START: 'step-start',
-  STEP_END: 'step-end',
+export const LOGS = {
+  STEP_START: {
+    logId: 'step-start',
+    logMessage: (step: string) => `step ${step} started`,
+  },
+  STEP_END: {
+    logId: 'step-end',
+    logMessage: (step: string) => `step ${step} ended`,
+  },
 };

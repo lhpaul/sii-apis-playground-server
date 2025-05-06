@@ -1,10 +1,11 @@
-import axios, { AxiosStatic } from 'axios';
-import { apiRequest } from '../api-requests.utils';
-import { LOG_IDS } from '../api-requests.constants';
+import axios, { AxiosError, AxiosStatic } from 'axios';
+
 import { maskFields } from '../../mask/mask.utils';
 import { processLoggerMock } from '../../mocks/process-logger.mocks';
-import { IApiRequestValues, IRequestOptions } from '../api-requests.utils.interfaces';
 import { IProcessLogger } from '../../../definitions/logging.interfaces';
+import { DEFAULT_ERROR_CODE, LOGS } from '../api-requests.constants';
+import { IApiRequestValues, IRequestOptions } from '../api-requests.utils.interfaces';
+import { apiRequest } from '../api-requests.utils';
 
 // Mock axios
 jest.mock('axios');
@@ -45,6 +46,7 @@ describe(apiRequest.name, () => {
     params: { id: '123' },
     payload: { data: 'test' }
   };
+  const BASE_TIME = 1234567890;
 
   beforeEach(() => {
     // Reset all mocks
@@ -68,9 +70,18 @@ describe(apiRequest.name, () => {
       getStepElapsedTime: jest.fn(),
       getTotalElapsedTime: jest.fn()
     } as unknown as jest.Mocked<IProcessLogger>;
+
+    // this is so new Date().getTime responds with a fixed value
+    jest.useFakeTimers().setSystemTime(new Date(BASE_TIME));
   });
 
   describe('Successful requests', () => {
+    const duration = 100;
+    beforeEach(() => {
+      // Simulate duration of the request
+      jest.spyOn(Date, 'now').mockReturnValueOnce(BASE_TIME);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(BASE_TIME + duration);
+    });
     it('should make a successful API request and log the response', async () => {
       // Setup mock response
       const mockResponse = {
@@ -85,34 +96,35 @@ describe(apiRequest.name, () => {
 
       // Verify axios was called with correct config
       expect(mockedAxios).toHaveBeenCalledWith({
-        method: 'GET',
-        url: 'https://api.example.com/test',
-        headers: { 'Authorization': 'Bearer token' },
-        params: { id: '123' },
-        data: { data: 'test' }
+        method: baseRequestValues.method,
+        url: baseRequestValues.url,
+        headers: baseRequestValues.headers,
+        params: baseRequestValues.params,
+        data: baseRequestValues.payload
       });
 
       // Verify success logging
       expect(processLoggerMock.info).toHaveBeenCalledWith(
         expect.objectContaining({
-          logId: LOG_IDS.API_REQUEST_START,
+          logId: LOGS.API_REQUEST_START.logId,
           data: {
-            method: 'GET',
-            url: 'https://api.example.com/test',
+            method: baseRequestValues.method,
+            url: baseRequestValues.url,
             headers: baseRequestValues.headers,
             params: baseRequestValues.params,
             payload: baseRequestValues.payload
           }
         }),
-        'Making GET HTTP request to https://api.example.com/test'
+        LOGS.API_REQUEST_START.logMessage({ url: baseRequestValues.url, method: baseRequestValues.method })
       );
 
       expect(processLoggerMock.info).toHaveBeenCalledWith(
         expect.objectContaining({
-          logId: LOG_IDS.API_REQUEST_SUCCESS,
+          logId: LOGS.API_REQUEST_SUCCESS.logId,
           data: {
-            method: 'GET',
-            url: 'https://api.example.com/test',
+            method: baseRequestValues.method,
+            url: baseRequestValues.url,
+            duration,
             requestHeaders: baseRequestValues.headers,
             params: baseRequestValues.params,
             requestPayload: baseRequestValues.payload,
@@ -120,7 +132,7 @@ describe(apiRequest.name, () => {
             responsePayload: mockResponse.data
           }
         }),
-        'HTTP request to https://api.example.com/test responded successfully with status 200'
+        LOGS.API_REQUEST_SUCCESS.logMessage({ url: baseRequestValues.url, method: baseRequestValues.method, duration })
       );
 
       // Verify result
@@ -178,6 +190,12 @@ describe(apiRequest.name, () => {
   });
 
   describe('Failed requests', () => {
+    const duration = 100;
+    beforeEach(() => {
+      // Simulate duration of the request
+      jest.spyOn(Date, 'now').mockReturnValueOnce(BASE_TIME);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(BASE_TIME + duration);
+    });
     it('should handle AxiosError and return error response', async () => {
       const mockError = {
         isAxiosError: true,
@@ -187,38 +205,39 @@ describe(apiRequest.name, () => {
           status: 500,
           data: { error: 'Internal Server Error' }
         }
-      };
+      } as AxiosError;
       (mockedAxios as unknown as jest.Mock).mockRejectedValueOnce(mockError);
 
       const result = await apiRequest(baseRequestValues);
 
       expect(processLoggerMock.error).toHaveBeenCalledWith(
         expect.objectContaining({
-          logId: LOG_IDS.API_REQUEST_ERROR,
+          logId: LOGS.API_REQUEST_ERROR.logId,
           data: {
-            method: 'GET',
-            url: 'https://api.example.com/test',
+            method: baseRequestValues.method,
+            url: baseRequestValues.url,
+            duration,
             requestHeaders: baseRequestValues.headers,
             params: baseRequestValues.params,
             requestPayload: baseRequestValues.payload,
             error: {
-              message: 'Request failed',
-              code: 'ECONNREFUSED',
-              status: 500,
-              data: { error: 'Internal Server Error' }
+              message: mockError.message,
+              code: mockError.code,
+              status: mockError.response?.status,
+              data: mockError.response?.data
             }
           }
         }),
-        'HTTP GET request to https://api.example.com/test failed with error: Request failed'
+        LOGS.API_REQUEST_ERROR.logMessage({ url: baseRequestValues.url, method: baseRequestValues.method, error: mockError, duration })
       );
 
       expect(result).toEqual({
-        status: 500,
+        status: mockError.response?.status,
         error: {
-          code: 'ECONNREFUSED',
-          message: 'Request failed',
-          status: 500,
-          data: { error: 'Internal Server Error' }
+          code: mockError.code,
+          message: mockError.message,
+          status: mockError.response?.status,
+          data: mockError.response?.data
         }
       });
     });
@@ -228,36 +247,37 @@ describe(apiRequest.name, () => {
         isAxiosError: true,
         message: 'Network Error',
         code: 'ERR_NETWORK'
-      };
+      } as AxiosError;
       (mockedAxios as unknown as jest.Mock).mockRejectedValueOnce(mockError);
 
       const result = await apiRequest(baseRequestValues);
 
       expect(processLoggerMock.error).toHaveBeenCalledWith(
         expect.objectContaining({
-          logId: LOG_IDS.API_REQUEST_ERROR,
+          logId: LOGS.API_REQUEST_ERROR.logId,
           data: {
-            method: 'GET',
-            url: 'https://api.example.com/test',
+            method: baseRequestValues.method,
+            url: baseRequestValues.url,
+            duration,
             requestHeaders: baseRequestValues.headers,
             params: baseRequestValues.params,
             requestPayload: baseRequestValues.payload,
             error: {
-              message: 'Network Error',
-              code: 'ERR_NETWORK',
+              message: mockError.message,
+              code: mockError.code,
               status: null,
               data: null
             }
           }
         }),
-        'HTTP GET request to https://api.example.com/test failed with error: Network Error'
+        LOGS.API_REQUEST_ERROR.logMessage({ url: baseRequestValues.url, method: baseRequestValues.method, error: mockError, duration })
       );
 
       expect(result).toEqual({
         status: -1,
         error: {
-          code: 'ERR_NETWORK',
-          message: 'Network Error',
+          code: mockError.code,
+          message: mockError.message,
           status: null,
           data: null
         }
@@ -272,29 +292,30 @@ describe(apiRequest.name, () => {
 
       expect(processLoggerMock.error).toHaveBeenCalledWith(
         expect.objectContaining({
-          logId: LOG_IDS.API_REQUEST_ERROR,
+          logId: LOGS.API_REQUEST_ERROR.logId,
           data: {
-            method: 'GET',
-            url: 'https://api.example.com/test',
+            method: baseRequestValues.method,
+            url: baseRequestValues.url,
+            duration,
             requestHeaders: baseRequestValues.headers,
             params: baseRequestValues.params,
             requestPayload: baseRequestValues.payload,
             error: {
-              message: 'Unexpected error',
-              code: 'unknown-error',
+              message: mockError.message,
+              code: DEFAULT_ERROR_CODE,
               status: null,
               data: null
             }
           }
         }),
-        'HTTP GET request to https://api.example.com/test failed with error: Unexpected error'
+        LOGS.API_REQUEST_ERROR.logMessage({ url: baseRequestValues.url, method: baseRequestValues.method, error: mockError, duration })
       );
 
       expect(result).toEqual({
         status: -1,
         error: {
-          code: 'unknown-error',
-          message: 'Unexpected error',
+          code: DEFAULT_ERROR_CODE,
+          message: mockError.message,
           status: null,
           data: null
         }
