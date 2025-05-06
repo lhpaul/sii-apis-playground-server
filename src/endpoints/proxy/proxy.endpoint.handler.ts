@@ -16,7 +16,7 @@ export const proxyHandler = async (
 ): Promise<void> => { 
   const { method, body, params, headers } = request;
 
-  const logger = request.log.child({ handled: proxyHandler.name }) as RequestLogger;
+  const logger = request.log.child({ handler: proxyHandler.name }) as RequestLogger;
 
   if (method === 'OPTIONS') {
     return reply.code(200).send();
