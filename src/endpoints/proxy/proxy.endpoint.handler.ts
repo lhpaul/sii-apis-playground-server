@@ -41,7 +41,7 @@ export const proxyHandler = async (
   } catch (error) {
     logger.endStep(STEPS.PROXY_REQUEST.id);
     if (error instanceof MakeRequestError && error.status) {
-      return reply.code(error.status).send({ code: error.code, message: error.message });
+      return reply.code(error.status).send({ code: error.code, message: error.message, data: error.data });
     }
     throw error;
   }

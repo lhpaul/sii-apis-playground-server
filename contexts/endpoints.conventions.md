@@ -14,7 +14,7 @@ When responding to an error, the payload must follow this structure:
 {
   "code": "error-code",
   "message": "Human readable error message",
-  "details": {} // Optional, only for 4XX errors
+  "data": {} // Optional, only for 4XX errors
 }
 ```
 
@@ -25,21 +25,21 @@ When responding to an error, the payload must follow this structure:
 
 ### Optional Fields
 
-- `details`: Additional error information (only for 4XX errors)
+- `data`: Additional error information (only for 4XX errors)
   - Contains specific validation errors, missing fields, or other relevant details
   - Should be a JSON object with structured information
 
 ### Error Status Codes
 
 - **4XX Errors (Client Errors)**
-  - May include a `details` field with specific error information
+  - May include a `data` field with specific error information
   - Example:
 
     ```json
     {
       "code": "invalid-input",
       "message": "Invalid input data",
-      "details": {
+      "data": {
         "email": "Must be a valid email address",
         "password": "Must be at least 8 characters"
       }
@@ -48,7 +48,7 @@ When responding to an error, the payload must follow this structure:
 
 - **5XX Errors (Server Errors)**
   - Should not expose internal implementation details
-  - No `details` field should be included
+  - No `data` field should be included
   - Example:
 
     ```json
