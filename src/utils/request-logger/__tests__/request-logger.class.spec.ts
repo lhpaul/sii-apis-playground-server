@@ -84,11 +84,11 @@ describe('RequestLogger', () => {
       expect(mockLogger.fatal).toHaveBeenCalledWith(data, message);
     });
 
-    it('should forward trace calls to the underlying logger', () => {
-      const data = { trace: 'test trace' };
-      const message = 'trace message';
-      requestLogger.trace(data, message);
-      expect(mockLogger.trace).toHaveBeenCalledWith(data, message);
+    it('should forward info calls to the underlying logger', () => {
+      const data = { info: 'test info' };
+      const message = 'info message';
+      requestLogger.info(data, message);
+      expect(mockLogger.info).toHaveBeenCalledWith(data, message);
     });
     it('should forward silent calls to the underlying logger', () => {
       const data = { silent: 'test silent' };
@@ -107,7 +107,7 @@ describe('RequestLogger', () => {
       const step = { id: 'test-step', obfuscatedId: '01' };
       requestLogger.startStep(step.id, step.obfuscatedId);
       expect(requestLogger.lastStep).toEqual(step);
-      expect(mockLogger.trace).toHaveBeenCalledWith(
+      expect(mockLogger.info).toHaveBeenCalledWith(
         LOGS.STEP_START.logMessage(step.id),
         expect.objectContaining({
           logId: LOGS.STEP_START.logId,
@@ -125,7 +125,7 @@ describe('RequestLogger', () => {
       jest.useFakeTimers().setSystemTime(new Date(BASE_TIME + 100));
       requestLogger.endStep(step.id);
 
-      expect(mockLogger.trace).toHaveBeenCalledWith(
+      expect(mockLogger.info).toHaveBeenCalledWith(
         LOGS.STEP_END.logMessage(step.id),
         expect.objectContaining({
           logId: LOGS.STEP_END.logId,

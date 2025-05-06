@@ -50,7 +50,7 @@ export class RequestLogger implements IProcessLogger  {
   startStep(label: string, obfuscatedId?: string): void {
     const now = new Date().getTime();
     this._activeSteps[label] = { initTime: now };
-    this._logger.trace(LOGS.STEP_START.logMessage(label), {
+    this._logger.info(LOGS.STEP_START.logMessage(label), {
       logId: LOGS.STEP_START.logId,
       step: label,
       totalElapsedTime: now - this.initTime,
@@ -65,7 +65,7 @@ export class RequestLogger implements IProcessLogger  {
     }
     const now = new Date().getTime();
     const elapsedTimeFromPreviousStep = now - step.initTime;
-    this._logger.trace(LOGS.STEP_END.logMessage(label), {
+    this._logger.info(LOGS.STEP_END.logMessage(label), {
       logId: LOGS.STEP_END.logId,
       step: label,
       elapsedTimeFromPreviousStep,
