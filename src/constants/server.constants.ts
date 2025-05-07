@@ -11,7 +11,7 @@ export const SERVER_LOGGER_CONFIG : pino.LoggerOptions = {
 }
 
 export const COR_CONFIG = {
-    origin: 'localhost'
+    origin: ['*']
 }
 
 export const RESOURCE_NOT_FOUND_ERROR = {

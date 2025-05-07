@@ -22,9 +22,7 @@ export const init = async function(): Promise<FastifyInstance> {
         logger: SERVER_LOGGER_CONFIG
     });
 
-    if (process.env.NODE_ENV !== 'production') {
-        await server.register(cors, COR_CONFIG);
-    }
+    await server.register(cors, COR_CONFIG);
 
     // Help secure the api by setting HTTP response headers
     server.register(helmet, { global: true })
