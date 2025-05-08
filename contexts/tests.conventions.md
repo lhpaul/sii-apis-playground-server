@@ -5,7 +5,7 @@ This document outlines the testing conventions used in this repository. Adhering
 ## Test File Organization
 
 - Test files should be named with `.spec.ts` suffix
-- Place test files in a `__test__` folder in the same directory as the file being tested
+- Place test files in a `__tests__` folder in the same directory as the file being tested
 - Name test files to match the file they're testing (e.g., `user.service.ts` → `__test__/user.service.spec.ts`)
 
 ## General Guidelines
