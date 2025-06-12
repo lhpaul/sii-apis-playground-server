@@ -1,0 +1,69 @@
+steps:
+  - name: 'gcr.io/kaniko-project/executor:latest'
+    id: BUILD_AND_DEPLOY
+    args:
+      [
+        '--dockerfile=./apps/public/Dockerfile',
+        '--cache=true',
+        '--cache-ttl=6h',
+        '--build-arg="_ENV=${_ENV}"',
+        '--destination=gcr.io/$PROJECT_ID/public-app-server:$SHORT_SHA',
+        '--snapshotMode=redo',
+        '--log-timestamp',
+      ]
+  - name: gcr.io/cloud-builders/gcloud
+    id: DEPLOY
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        if [ "${_ENV}" = "prod" ]; then
+          MIN_INSTANCES="--min-instances 1"
+          CPU_BOOST="--cpu-boost"
+        else
+          MIN_INSTANCES="--min-instances 0"
+          CPU_BOOST="--no-cpu-boost"
+        fi
+
+        gcloud beta run deploy \
+        public-app-server --image gcr.io/$PROJECT_ID/public-app-server:$SHORT_SHA \
+        --set-env-vars APP_ENV=${_ENV} \
+        --platform managed \
+        --region us-central1 \
+        --allow-unauthenticated \
+        $$MIN_INSTANCES \
+        $$CPU_BOOST \
+        --update-secrets DD_API_KEY=datadog-api-key:latest \
+        --set-env-vars DD_SERVICE=${_ENV}-public-app-server \
+        --set-env-vars DD_ENV=${_ENV} \
+        --set-env-vars DD_VERSION=1.14.0 \
+        --set-env-vars DD_LOGS_ENABLED=true \
+        --set-env-vars DD_SITE=datadoghq.com \
+        --set-env-vars DD_TRACE_TELEMETRY_ENABLED=false \
+        --set-env-vars DD_TRACE_PROPAGATION_STYLE=datadog \
+        --set-env-vars DD_TRACE_ENABLED=true \
+        --set-env-vars DD_IAST_ENABLED=true \
+        --update-secrets PLAYERS_AUTH_API_KEY=players-auth-api-key:latest \
+        --update-secrets BETTERACTIONS_CORE_API_KEY=betteractions-core-api-key:latest \
+        --update-secrets PLAYERS_MGMT_API_KEY=players-mgmt-api-key:latest \
+        --update-secrets ACCOUNTS_ENGINE_CREDENTIALS=accounts-engine-credentials:latest \
+        --update-secrets SUPPORTING_DOMAIN_API_KEY=supporting-domain-api-key:latest \
+        --update-secrets MEMBERSHIPS_MGMT_API_KEY=memberships-mgmt-api-key:latest \
+        --update-secrets CLIENTS_MICROCORE_CREDENTIALS=cc-microcore-api-credentials:latest \
+        --update-secrets BILLINGS_CORE_CREDENTIALS=billings-core-credentials:latest \
+        --update-secrets SUPPORT_API_KEY=support-api-key:latest \
+        --update-secrets SUPPORTING_MESSAGES_API_KEY=supporting-messages-api-key:latest \
+        --memory 512M \
+        --ingress internal-and-cloud-load-balancing \
+        --labels=layer=backend,env=${_ENV},domain=app-xp,product=app-betterfly-effect,availability=24-7
+  - name: gcr.io/cloud-builders/gcloud
+    id: ALLOW_ALL_UNAUTHENTICATED
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        gcloud beta run services add-iam-policy-binding \
+        public-app-server \
+        --member="allUsers" \
+        --role="roles/run.invoker" \
+        --region="us-central1"

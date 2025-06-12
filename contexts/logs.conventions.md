@@ -16,11 +16,14 @@ export const RESOURCE_NOT_FOUND_ERROR = {
     logMessage: 'The requested resource was not found',
 }
 */
-request.log.warn({
-  logId: RESOURCE_NOT_FOUND_ERROR.logId,
-  requestId: request.id,
-  url: request.url
-}, RESOURCE_NOT_FOUND_ERROR.logMessage);
+request.log.warn(
+  {
+    logId: RESOURCE_NOT_FOUND_ERROR.logId,
+    requestId: request.id,
+    url: request.url,
+  },
+  RESOURCE_NOT_FOUND_ERROR.logMessage,
+);
 ```
 
 ## Monitoring Performance
@@ -33,21 +36,22 @@ To effectively monitor performance, wrap asynchronous calls with the `startStep`
 /*
 lets assume that the STEPS constant is defined like this:
 export const STEPS = {
-  UPDATE_USER: { id: 'proxy-request', obfuscatedId: '01' },
-  NOTIFY_USER: { id: 'notify-user', obfuscatedId: '02' }
+  UPDATE_USER: { id: 'proxy-request' },
+  NOTIFY_USER: { id: 'notify-user' }
 };
 */
 try {
-  logger.startStep(STEPS.UPDATE_USER.id, STEPS.UPDATE_USER.obfuscatedId);
-  await usersService.updateUser();
-  logger.endStep(STEP_LABELS.UPDATE_USER.id);
-  logger.startStep(STEP_LABELS.NOTIFY_USER.id, STEP_LABELS.NOTIFY_USER.obfuscatedId);
-  await usersService.notifyUser();
-  logger.endStep(STEP_LABELS.NOTIFY_USER.id);
+  logger.startStep(STEPS.UPDATE_USER.id);
+  await usersService
+    .updateUser()
+    .finally(() => logger.endStep(STEPS.UPDATE_USER.id));
+  logger.endStep(STEPS.UPDATE_USER.id);
+  logger.startStep(STEPS.NOTIFY_USER.id);
+  await usersService
+    .notifyUser()
+    .finally(() => logger.endStep(STEPS.NOTIFY_USER.id));
   // Continue with further logic...
 } catch (error) {
-  logger.endStep(STEP_LABELS.UPDATE_USER.id);
-  logger.endStep(STEP_LABELS.NOTIFY_USER.id); // if it fails before this step started, It will be ignored
   // Handle the error...
 }
 ```

@@ -26,18 +26,21 @@ When defining a new endpoint (e.g., `src/endpoints/<endpoint-name>/<endpoint-nam
 **Example:**
 
 ```typescript
-export const usersEndpoint: RouteOptions = createEndpoint({
-  method: ['POST'],
-  path: '/users',
-  handler: createUserHandler,
-}, {
-  maskOptions: {
-    requestHeaders: ['authorization'],
-    requestPayloadFields: ['lastName', 'email', 'phoneNumber'],
-    responseHeaders: ['authorization'],
-    responsePayloadFields: ['sensitiveField']
-  }
-});
+export const usersEndpoint: RouteOptions = createEndpoint(
+  {
+    method: ["POST"],
+    path: "/users",
+    handler: createUserHandler,
+  },
+  {
+    maskOptions: {
+      requestHeaders: ["authorization"],
+      requestPayloadFields: ["lastName", "email", "phoneNumber"],
+      responseHeaders: ["authorization"],
+      responsePayloadFields: ["sensitiveField"],
+    },
+  },
+);
 ```
 
 Similarly, when making requests to external APIs, define which fields should be masked in the request and response logs.
@@ -45,18 +48,21 @@ Similarly, when making requests to external APIs, define which fields should be 
 **Example:**
 
 ```typescript
-const { data: responseData, error } = await apiRequest<any>({
-  method,
-  url,
-  payload,
-  headers
-}, {
-  maskOptions: {
-    requestPayloadFields: ['email', 'password'],
-    requestHeaders: ['x-api-key'],
-    responsePayloadFields: ['token']
-  }
-});
+const { data: responseData, error } = await apiRequest<any>(
+  {
+    method,
+    url,
+    payload,
+    headers,
+  },
+  {
+    maskOptions: {
+      requestPayloadFields: ["email", "password"],
+      requestHeaders: ["x-api-key"],
+      responsePayloadFields: ["token"],
+    },
+  },
+);
 ```
 
 For more details, refer to the [IMaskRequestOptions](src/utils/api-requests/api-requests.utils.interfaces.ts) interface in `src/utils/api-requests/api-requests.utils.interfaces.ts`.

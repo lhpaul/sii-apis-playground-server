@@ -1,0 +1,25 @@
+{
+	"folders": [
+		{
+			"name": "Public API",
+			"path": "apps/public-api"
+		},
+		{
+			"name": "Configs Package",
+			"path": "packages/configs"
+		},
+		{
+			"name": "Fastify Package",
+			"path": "packages/fastify"
+		},
+		{
+			"name": "Shared Package",
+			"path": "packages/shared"
+		},
+		{
+			"name": "Root",
+			"path": "."
+		}
+	],
+	"settings": {}
+}

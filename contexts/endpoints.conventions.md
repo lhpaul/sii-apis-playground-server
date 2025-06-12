@@ -32,6 +32,7 @@ When responding to an error, the payload must follow this structure:
 ### Error Status Codes
 
 - **4XX Errors (Client Errors)**
+
   - May include a `data` field with specific error information
   - Example:
 
@@ -47,13 +48,14 @@ When responding to an error, the payload must follow this structure:
     ```
 
 - **5XX Errors (Server Errors)**
+
   - Should not expose internal implementation details
   - No `data` field should be included
   - Example:
 
     ```json
     {
-      "code": "01",
+      "code": "1",
       "message": "An unexpected error occurred"
     }
     ```

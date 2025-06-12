@@ -31,7 +31,7 @@ describe(proxyHandler.name, () => {
 **Don't:**
 
 ```typescript
-expect(mockLogger.endStep).toHaveBeenCalledWith('proxy-request');
+expect(mockLogger.endStep).toHaveBeenCalledWith("proxy-request");
 ```
 
 **Instead:**
